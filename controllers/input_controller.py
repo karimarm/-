@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from models.bibliography_item import BibliographyItem
+from utils.reference_parser import ReferenceParser
+
+class InputController:
+    """
+    Контроллер для вкладки ввода и редактирования библиографических ссылок.
+    Обрабатывает взаимодействие между моделью и представлением.
+    """
+    
+    def __init__(self, model, view):
+        """
+        Инициализация контроллера
+        
+        Args:
+            model: Модель данных
+            view: Представление вкладки ввода
+        """
+        self.model = model
+        self.view = view
+        
+        # Привязка сигналов представления к методам контроллера
+        self.view.add_bibliography_signal.connect(self.add_bibliography)
+        self.view.edit_bibliography_signal.connect(self.edit_bibliography)
+        self.view.parse_text_signal.connect(self.parse_text)
+        self.view.remove_item_signal.connect(self.remove_item)
+        
+        # Начальное обновление списка в представлении
+        self.update_view()
+    
+    def add_bibliography(self, text, format_type):
+        """
+        Добавление новой библиографической ссылки
+        
+        Args:
+            text (str): Текст библиографической ссылки
+            format_type (str): Тип формата
+        """
+        if not text:
+            return
+        
+        # Создание объекта библиографической записи
+        item = BibliographyItem(text)
+        
+        # Добавление в модель
+        self.model.add_bibliography_item(item)
+        
+        # Обновление представления
+        self.update_view()
+    
+    def edit_bibliography(self, text, index, format_type):
+        """
+        Редактирование существующей библиографической ссылки
+        
+        Args:
+            text (str): Новый текст библиографической ссылки
+            index (int): Индекс редактируемой записи
+            format_type (str): Тип формата
+        """
+        if not text or index < 0 or index >= len(self.model.bibliography_list):
+            return
+        
+        # Замена существующей записи
+        self.model.bibliography_list[index] = BibliographyItem(text)
+        
+        # Обновление представления
+        self.update_view()
+    
+    def parse_text(self, text):
+        """
+        Распознавание библиографической ссылки и заполнение формы
+        
+        Args:
+            text (str): Текст библиографической ссылки
+        """
+        if not text:
+            return
+        
+        # Распознавание библиографической ссылки
+        item = ReferenceParser.parse(text)
+        
+        # Заполнение формы распознанными данными
+        self.view.fill_form_with_data(item.to_dict())
+    
+    def remove_item(self, index):
+        """
+        Удаление библиографической ссылки
+        
+        Args:
+            index (int): Индекс удаляемой записи
+        """
+        if index < 0 or index >= len(self.model.bibliography_list):
+            return
+        
+        # Удаление записи из модели
+        self.model.remove_bibliography_item(index)
+        
+        # Обновление представления
+        self.update_view()
+    
+    def update_view(self):
+        """Обновление представления списка библиографических ссылок"""
+        self.view.update_bibliography_list(self.model.bibliography_list) 
