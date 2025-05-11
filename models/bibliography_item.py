@@ -17,8 +17,11 @@ class BibliographyItem:
         self.raw_text = raw_text
         self.authors = []
         self.title = ""
+        self.subtitle = ""
         self.year = ""
         self.publisher = ""
+        self.city = ""  
+        self.edition = ""  # Добавляем поле для номера издания
         self.journal = ""
         self.volume = ""
         self.issue = ""
@@ -45,14 +48,27 @@ class BibliographyItem:
         if self.title:
             result += self.title + ". "
         
+        if self.edition:
+            result += f"{self.edition}-е изд. "
+        
         if self.journal:
             result += self.journal + ". "
         
         if self.year:
             result += self.year + ". "
         
+        if self.city:
+            result += self.city
+            if self.publisher:
+                result += ": "
+        
         if self.publisher:
-            result += self.publisher + ". "
+            result += self.publisher
+            if self.year and not self.city:
+                result += ", "
+        
+        if self.city or self.publisher:
+            result += ". "
         
         if self.volume and self.issue:
             result += f"Т. {self.volume}, № {self.issue}. "
@@ -114,8 +130,11 @@ class BibliographyItem:
             'raw_text': self.raw_text,
             'authors': self.authors,
             'title': self.title,
+            'subtitle': self.subtitle,
             'year': self.year,
+            'city': self.city,
             'publisher': self.publisher,
+            'edition': self.edition,
             'journal': self.journal,
             'volume': self.volume,
             'issue': self.issue,
@@ -144,7 +163,9 @@ class BibliographyItem:
         item.authors = data.get('authors', [])
         item.title = data.get('title', '')
         item.year = data.get('year', '')
+        item.city = data.get('city', '')
         item.publisher = data.get('publisher', '')
+        item.edition = data.get('edition', '')  # Добавляем поле номера издания
         item.journal = data.get('journal', '')
         item.volume = data.get('volume', '')
         item.issue = data.get('issue', '')

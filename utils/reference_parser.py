@@ -16,20 +16,46 @@ class ReferenceParser:
     
     # Шаблоны ГОСТ для разных типов источников
     # Книга: Автор. Название : Подзаголовок / Авторы. — Издание — Город : Издательство, Год. — Страницы с.
+    # GOST_BOOK_PATTERN = re.compile(
+    #     r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
+    #     r'(?P<title>.*?)'  # Название книги
+    #     r'(?:\s*:\s*(?P<subtitle>.*?))?'  # Подзаголовок (опционально)
+    #     r'(?:\s*/\s*(?P<authors2>.*?))?'  # Авторы после косой черты (опционально)
+    #     r'(?:\.\s+—\s+(?P<edition>.*?))?'  # Издание (опционально)
+    #     r'(?:\s*—\s+)?'  # Разделитель (опционально)
+    #     r'(?P<city>.*?)'  # Город издания
+    #     r'\s*:\s*'  # Разделитель между городом и издательством
+    #     r'(?P<publisher>.*?)'  # Издательство
+    #     r',\s+(?P<year>\d{4})'  # Год издания
+    #     r'(?:\.\s+—\s+(?P<pages>\d+)\s+с\.)?'  # Количество страниц (опционально)
+    # )
+    # GOST_BOOK_PATTERN = re.compile(
+    #     r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
+    #     r'(?P<title>.*?)'  # Название книги
+    #     r'(?:\s*:\s*(?P<subtitle>.*?))?\s*/\s*'  # Подзаголовок (опционально)
+    #     r'(?:(?P<authors2>.*?)\.\s*—\s*)?'  # Авторы после косой черты (опционально)
+    #     r'(?:\.\s+—\s+(?P<edition>.*?))?'  # Издание (опционально)
+    #     r'(?:\s*—\s+)?'  # Разделитель (опционально)
+    #     r'(?P<city>.*?)'  # Город издания
+    #     r'\s*:\s*'  # Разделитель между городом и издательством
+    #     r'(?P<publisher>.*?)'  # Издательство
+    #     r',\s+(?P<year>\d{4})'  # Год издания
+    #     r'(?:\.\s+—\s+(?P<pages>\d+)\s+с\.)?'  # Количество страниц (опционально)
+    # )
     GOST_BOOK_PATTERN = re.compile(
-        r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
-        r'(?P<title>.*?)'  # Название книги
-        r'(?:\s*:\s*(?P<subtitle>.*?))?'  # Подзаголовок (опционально)
-        r'(?:\s*/\s*(?P<authors2>.*?))?'  # Авторы после косой черты (опционально)
-        r'(?:\.\s+—\s+(?P<edition>.*?))?'  # Издание (опционально)
-        r'(?:\s*—\s+)?'  # Разделитель (опционально)
-        r'(?P<city>.*?)'  # Город издания
-        r'\s*:\s*'  # Разделитель между городом и издательством
-        r'(?P<publisher>.*?)'  # Издательство
-        r',\s+(?P<year>\d{4})'  # Год издания
-        r'(?:\.\s+—\s+(?P<pages>\d+)\s+с\.)?'  # Количество страниц (опционально)
+    r'(?P<authors>.*?)\.\s+'
+        r'(?P<title>.*?)'
+        r'(?:\s*:\s*(?P<subtitle>.*?))?\s*/\s*'
+        r'(?P<authors2>.*?)'
+        r'(?:\.\s+—\s+(?P<edition>.*?))?'
+        r'(?:\s*—\s+(?P<city>.*?))?'
+        r'\s*:\s*'
+        r'(?P<publisher>.*?)'
+        r',\s+(?P<year>\d{4})'
+        r'(?:\.\s+—\s+)?'
+        r'(?P<pages>\d+)\s+с\.'
     )
-    
+
     # Статья в журнале: Автор. Название статьи // Название журнала. — Год. — Том X. — № Y. — С. Z-W.
     GOST_ARTICLE_PATTERN = re.compile(
         r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
@@ -243,10 +269,13 @@ class ReferenceParser:
         if book_match:
             data = book_match.groupdict()
             if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
+                item.authors = ReferenceParser._process_authors(data['authors']+'.')
             item.title = data['title'] if data['title'] else ""
-            if data['subtitle']:
-                item.title += ": " + data['subtitle']
+            item.subtitle = data['subtitle'] if data['subtitle'] else ""
+            # if data['subtitle']:
+            #     item.title += ": " + data['subtitle']
+            item.edition = data['edition'] if data['edition'] else ""
+            item.city = data['city'] if data['city'] else ""
             item.publisher = data['publisher'] if data['publisher'] else ""
             item.year = data['year'] if data['year'] else ""
             item.pages = data['pages'] if data['pages'] else ""

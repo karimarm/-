@@ -94,10 +94,22 @@ class InputTab(QWidget):
         self.title_edit = QLineEdit()
         form_layout.addRow("Название:", self.title_edit)
         
+        # Название
+        self.subtitle_edit = QLineEdit()
+        form_layout.addRow("Сведения:", self.subtitle_edit)
+
         # Год
         self.year_edit = QLineEdit()
         form_layout.addRow("Год:", self.year_edit)
         
+        # Место издания (город)
+        self.city_edit = QLineEdit()
+        form_layout.addRow("Город:", self.city_edit)
+        
+        # Номер издания
+        self.edition_edit = QLineEdit()
+        form_layout.addRow("Номер издания:", self.edition_edit)
+
         # Издательство (для книг)
         self.publisher_edit = QLineEdit()
         form_layout.addRow("Издательство:", self.publisher_edit)
@@ -245,7 +257,22 @@ class InputTab(QWidget):
     
     def on_clear_form(self):
         """Обработчик очистки формы"""
-        self.clear_form()
+        self.authors_edit.clear()
+        self.title_edit.clear()
+        self.year_edit.clear()
+        self.subtitle_edit.clear()
+        self.city_edit.clear()
+        self.edition_edit.clear()
+        self.publisher_edit.clear()
+        self.journal_edit.clear()
+        self.volume_edit.clear()
+        self.issue_edit.clear()
+        self.pages_edit.clear()
+        self.url_edit.clear()
+        self.doi_edit.clear()
+        self.ru_radio.setChecked(True)
+        self.is_vak_check.setChecked(False)
+        self.is_rinc_check.setChecked(False)
     
     def on_edit_item(self):
         """Обработчик редактирования выбранного элемента списка"""
@@ -306,6 +333,8 @@ class InputTab(QWidget):
         is_web = index == 2  # "Веб-ресурс"
         
         # Поля для книг
+        self.edition_edit.setEnabled(is_book)
+        self.city_edit.setEnabled(is_book or is_article)
         self.publisher_edit.setEnabled(is_book or is_article)
         
         # Поля для статей
@@ -328,7 +357,10 @@ class InputTab(QWidget):
             'type': self.source_type_combo.currentText(),
             'authors': self.authors_edit.text(),
             'title': self.title_edit.text(),
+            'subtitle': self.subtitle_edit.text(),
             'year': self.year_edit.text(),
+            'city': self.city_edit.text(),
+            'edition': self.edition_edit.text(),
             'publisher': self.publisher_edit.text(),
             'journal': self.journal_edit.text(),
             'volume': self.volume_edit.text(),
@@ -368,6 +400,16 @@ class InputTab(QWidget):
         
         # В зависимости от типа источника
         if data['type'] == "Книга":
+            # Добавление номера издания
+            if data['edition']:
+                result += f"{data['edition']}-е изд. "
+            
+            # Добавление города
+            if data['city']:
+                result += data['city']
+                if data['publisher']:
+                    result += ": "
+            
             if data['publisher']:
                 result += data['publisher']
                 if data['year']:
@@ -378,7 +420,6 @@ class InputTab(QWidget):
             
             if data['pages']:
                 result += f"{data['pages']} с. "
-                
         elif data['type'] == "Статья":
             if data['journal']:
                 result += data['journal'] + ". "
@@ -412,7 +453,10 @@ class InputTab(QWidget):
         """Очистка формы ввода"""
         self.authors_edit.clear()
         self.title_edit.clear()
+        self.subtitle_edit.clear()
         self.year_edit.clear()
+        self.city_edit.clear()
+        self.edition_edit.clear()
         self.publisher_edit.clear()
         self.journal_edit.clear()
         self.volume_edit.clear()
@@ -450,7 +494,10 @@ class InputTab(QWidget):
         # Заполнение полей
         self.authors_edit.setText(", ".join(data.get('authors', [])))
         self.title_edit.setText(data.get('title', ''))
+        self.subtitle_edit.setText(data.get('subtitle', ''))
         self.year_edit.setText(data.get('year', ''))
+        self.city_edit.setText(data.get('city', ''))
+        self.edition_edit.setText(data.get('edition', ''))
         self.publisher_edit.setText(data.get('publisher', ''))
         self.journal_edit.setText(data.get('journal', ''))
         self.volume_edit.setText(data.get('volume', ''))
