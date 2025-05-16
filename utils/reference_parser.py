@@ -272,9 +272,12 @@ class ReferenceParser:
                 item.authors = ReferenceParser._process_authors(data['authors']+'.')
             item.title = data['title'] if data['title'] else ""
             item.subtitle = data['subtitle'] if data['subtitle'] else ""
-            # if data['subtitle']:
-            #     item.title += ": " + data['subtitle']
-            item.edition = data['edition'] if data['edition'] else ""
+            # Очищаем поле edition от суффикса "-е изд."
+            if data['edition']:
+                edition = data['edition'].strip()
+                # Удаляем суффикс "-е изд." если он есть
+                edition = re.sub(r'\s*-\s*е\s*изд\.?$', '', edition, flags=re.IGNORECASE)
+                item.edition = edition
             item.city = data['city'] if data['city'] else ""
             item.publisher = data['publisher'] if data['publisher'] else ""
             item.year = data['year'] if data['year'] else ""

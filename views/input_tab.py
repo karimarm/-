@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
+from datetime import datetime
 
 class InputTab(QWidget):
     """
@@ -392,60 +393,94 @@ class InputTab(QWidget):
         # Добавление авторов
         if data['authors']:
             result += data['authors']
-            result += ". "
+            result += " "
         
         # Добавление названия
         result += data['title']
-        result += ". "
+        
+        # Добавление подзаголовка
+        if data['subtitle']:
+            result += " : " + data['subtitle']
         
         # В зависимости от типа источника
         if data['type'] == "Книга":
-            # Добавление номера издания
+            # Добавление сведений об ответственности (авторы после косой черты)
+            if data['authors']:
+                result += " / " + data['authors']
+            result += " "
+            
+            # Добавление сведений об издании
             if data['edition']:
-                result += f"{data['edition']}-е изд. "
+                result += "— " + data['edition'] + "-е изд. "
             
-            # Добавление города
-            if data['city']:
-                result += data['city']
+            # Добавление места издания и издательства
+            if data['city'] or data['publisher']:
+                result += "— "
+                if data['city']:
+                    result += data['city']
+                    if data['publisher']:
+                        result += " : "
                 if data['publisher']:
-                    result += ": "
-            
-            if data['publisher']:
-                result += data['publisher']
+                    result += data['publisher']
                 if data['year']:
                     result += ", "
+            
+            # Добавление года
             if data['year']:
                 result += data['year']
             result += ". "
             
+            # Добавление количества страниц
             if data['pages']:
-                result += f"{data['pages']} с. "
+                result += "— " + data['pages'] + " с. "
+            
         elif data['type'] == "Статья":
+            # Добавление сведений об ответственности
+            if data['authors']:
+                result += " / " + data['authors']
+            result += ". "
+            
+            # Добавление названия журнала
             if data['journal']:
-                result += data['journal'] + ". "
+                result += "// " + data['journal'] + ". "
             
+            # Добавление года
             if data['year']:
-                result += data['year'] + ". "
+                result += "— " + data['year'] + ". "
             
+            # Добавление тома
             if data['volume']:
-                result += f"Т. {data['volume']}. "
+                result += "— Т. " + data['volume']
+                if data['issue']:
+                    result += ", "
+                else:
+                    result += ". "
             
+            # Добавление номера
             if data['issue']:
-                result += f"№ {data['issue']}. "
+                result += "№ " + data['issue'] + ". "
             
+            # Добавление страниц
             if data['pages']:
-                result += f"С. {data['pages']}. "
-                
-        elif data['type'] == "Веб-ресурс":
-            if data['year']:
-                result += data['year'] + ". "
+                result += "— С. " + data['pages'] + ". "
             
+        elif data['type'] == "Веб-ресурс":
+            result += " [Электронный ресурс]. "
+            
+            # Добавление года
+            if data['year']:
+                result += "— " + data['year'] + ". "
+            
+            # Добавление URL
             if data['url']:
-                result += f"URL: {data['url']}. "
+                result += "— URL: " + data['url']
+                # Добавление даты обращения (текущая дата)
+                current_date = datetime.now().strftime("%d.%m.%Y")
+                result += f" (дата обращения: {current_date}). "
         
         # Добавление DOI
         if data['doi']:
-            result += f"DOI: {data['doi']}. "
+            result += "DOI: " + data['doi'] + ". "
         
         return result.strip()
     
