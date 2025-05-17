@@ -458,7 +458,7 @@ class InputTab(QWidget):
             
             # Добавление номера
             if data['issue']:
-                result += "№ " + data['issue'] + ". "
+                result += "— № " + data['issue'] + ". "
             
             # Добавление страниц
             if data['pages']:

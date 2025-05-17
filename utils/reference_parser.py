@@ -43,39 +43,52 @@ class ReferenceParser:
     #     r'(?:\.\s+—\s+(?P<pages>\d+)\s+с\.)?'  # Количество страниц (опционально)
     # )
     GOST_BOOK_PATTERN = re.compile(
-    r'(?P<authors>.*?)\.\s+'
+        r'(?P<authors>.*?)\.\s+'
         r'(?P<title>.*?)'
         r'(?:\s*:\s*(?P<subtitle>.*?))?\s*/\s*'
         r'(?P<authors2>.*?)'
-        r'(?:\.\s+—\s+(?P<edition>.*?))?'
+        r'(?:\.\s+—\s+(?P<edition>.*?)-е изд\.)?'
         r'(?:\s*—\s+(?P<city>.*?))?'
         r'\s*:\s*'
-        r'(?P<publisher>.*?)'
-        r',\s+(?P<year>\d{4})'
+        r'(?P<publisher>.*?)?'
+        r',\s+(?P<year>\d{4})?'
         r'(?:\.\s+—\s+)?'
         r'(?P<pages>\d+)\s+с\.'
     )
 
+    # # Статья в журнале: Автор. Название статьи // Название журнала. — Год. — Том X. — № Y. — С. Z-W.
+    # GOST_ARTICLE_PATTERN = re.compile(
+    #     r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
+    #     r'(?P<title>.*?)(?:\s+/\s+[^/]*?)?'  # Название статьи, исключая авторов после косой черты (если есть)
+    #     r'\s+//'  # Разделитель между названием статьи и названием журнала
+    #     r'\s+(?P<journal>.*?)'  # Название журнала
+    #     r'(?:\.\s+—\s+|\.\s+)?'  # Разделитель (опционально)
+    #     r'(?P<year>\d{4})'  # Год издания
+    #     r'(?:\.\s+—\s+|\.\s+)?'  # Разделитель
+    #     r'(?:Т\.\s+(?P<volume>\d+))?'  # Том (опционально)
+    #     r'(?:\.\s+—\s+|\.\s+)?'  # Разделитель (опционально)
+    #     r'(?:№\s+(?P<issue>.*?))?'  # Номер (опционально)
+    #     r'(?:\.\s+—\s+|\.\s+)?'  # Разделитель
+    #     #r'(?:С\.\s+(?P<pages>\d+(?:-\d+)?))?'  # Страницы (опционально)
+    #     r'(?:[Сс]\.\s*(?P<pages>.*?)\.)?'  # Страницы (опционально)
+    # )
+
     # Статья в журнале: Автор. Название статьи // Название журнала. — Год. — Том X. — № Y. — С. Z-W.
     GOST_ARTICLE_PATTERN = re.compile(
-        r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
-        r'(?P<title>.*?)'  # Название статьи
-        r'\s+//'  # Разделитель между названием статьи и названием журнала
-        r'\s+(?P<journal>.*?)'  # Название журнала
-        r'(?:\.\s+—\s+|\.\s+)?'  # Разделитель (опционально)
-        r'(?P<year>\d{4})'  # Год издания
-        r'(?:\.\s+—\s+|\.\s+)'  # Разделитель
-        r'(?:Т\.\s+(?P<volume>\d+))?'  # Том (опционально)
-        r'(?:\.\s+—\s+|\.\s+)?'  # Разделитель (опционально)
-        r'(?:№\s+(?P<issue>\d+))?'  # Номер (опционально)
-        r'(?:\.\s+—\s+|\.\s+)'  # Разделитель
-        r'(?:С\.\s+(?P<pages>\d+(?:-\d+)?))?'  # Страницы (опционально)
+        r'(?P<authors>.*?)\.\s+'  # Авторы (минимум 1 символ до точки)
+        #r'(?P<authors>(?:[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.)(?:\s*,\s*[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.)*(?:\s+и\s+(?:др\.|[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.))?\.\s*'
+        r'(?P<title>.+?)\s+//\s*'  # Название статьи (минимум 1 символ)
+        r'(?P<journal>.+?)\.\s*'  # Название журнала (минимум 1 символ)
+        r'(?:—\s*(?P<year>\d{4})\s*\.\s*)?'  # Год
+        r'(?:—\s*Т\.\s*(?P<volume>\d+)\s*\.\s*)?'  # Том (опционально)
+        r'(?:—\s*№\s*(?P<issue>[^.—]+)\s*\.\s*)?'  # Номер (опционально)
+        r'(?:—\s*[Сс]\.\s*(?P<pages>\d+(?:\s*-\s*\d+)?)\s*\.)?'  # Страницы (опционально)
     )
     
     # Статья в сборнике: Автор. Название статьи // Название сборника / Под ред. Редактора. — Город : Издательство, Год. — С. X-Y.
     GOST_COLLECTION_PATTERN = re.compile(
         r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
-        r'(?P<title>.*?)'  # Название статьи
+        r'(?P<title>.*?)(?:\s+/\s+[^/]*?)?'  # Название статьи, исключая авторов после косой черты (если есть)
         r'\s+//'  # Разделитель между названием статьи и названием сборника
         r'\s+(?P<collection>.*?)'  # Название сборника
         r'(?:\s*/\s*(?P<editors>.*?))?'  # Редакторы (опционально)
@@ -91,7 +104,7 @@ class ReferenceParser:
     # Веб-ресурс: Автор. Название [Электронный ресурс]. — URL: http://example.com (дата обращения: ДД.ММ.ГГГГ).
     GOST_WEB_PATTERN = re.compile(
         r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
-        r'(?P<title>.*?)'  # Название ресурса
+        r'(?P<title>.*?)(?:\s+/\s+[^/]*?)?'  # Название ресурса, исключая авторов после косой черты (если есть)
         r'(?:\s+\[Электронный\s+ресурс\])?'  # Тип ресурса (опционально)
         r'(?:\.\s+—\s+|\.\s+)'  # Разделитель
         r'(?:URL:\s+)?'  # Метка URL (опционально)
@@ -102,14 +115,14 @@ class ReferenceParser:
     # Автореферат диссертации: Автор. Название : автореф. дис. ... канд. наук / Автор. — Город, Год. — Страницы с.
     GOST_THESIS_PATTERN = re.compile(
         r'(?P<authors>.*?)\.\s+'  # Авторы, заканчивающиеся точкой
-        r'(?P<title>.*?)'  # Название работы
+        r'(?P<title>.*?)(?:\s+/\s+[^/]*?)?'  # Название работы, исключая авторов после косой черты (если есть)
         r'\s*:\s*автореф\.\s+дис\.\s+\.\.\.\s+'  # Указание на автореферат
         r'(?P<degree>.*?)'  # Степень
         r'\s*/\s*(?P<authors2>.*?)'  # Авторы после косой черты
         r'(?:\.\s+—\s+|\.\s+)'  # Разделитель
         r'(?P<city>.*?)'  # Город
         r',\s+(?P<year>\d{4})'  # Год
-        r'(?:\.\s+—\s+(?P<pages>\d+)\s+с\.)?'  # Страницы (опционально)
+        r'(?:\.\s+—\s+(?P<pages>\d+(?:-\d+)?)\s+с\.)?'  # Страницы (опционально), с возможным диапазоном
     )
     
     # Шаблоны IEEE
@@ -243,13 +256,15 @@ class ReferenceParser:
         Returns:
             str: Определенный формат (ГОСТ, IEEE или unknown)
         """
+        # Признаки формата IEEE
+        if (ReferenceParser.IEEE_DETECT_PATTERN.search(text) or 
+            ('pp.' in text and 'vol.' in text) or 
+            ('"' in text and ',' in text and ('pp.' in text or 'vol.' in text or 'no.' in text))):
+            return "IEEE"
+        
         # Признаки формата ГОСТ
         if ReferenceParser.GOST_DETECT_PATTERN.search(text):
             return "ГОСТ"
-        
-        # Признаки формата IEEE
-        if ReferenceParser.IEEE_DETECT_PATTERN.search(text):
-            return "IEEE"
         
         # Если формат не определен, возвращаем ГОСТ как наиболее распространенный
         return "ГОСТ"
@@ -290,7 +305,7 @@ class ReferenceParser:
         if article_match:
             data = article_match.groupdict()
             if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
+                item.authors = ReferenceParser._process_authors(data['authors']+'.')
             item.title = data['title'] if data['title'] else ""
             item.journal = data['journal'] if data['journal'] else ""
             item.year = data['year'] if data['year'] else ""
@@ -305,7 +320,7 @@ class ReferenceParser:
         if collection_match:
             data = collection_match.groupdict()
             if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
+                item.authors = ReferenceParser._process_authors(data['authors']+'.')
             item.title = data['title'] if data['title'] else ""
             item.journal = data['collection'] if data['collection'] else ""
             item.publisher = data['publisher'] if data['publisher'] else ""
@@ -319,7 +334,7 @@ class ReferenceParser:
         if web_match:
             data = web_match.groupdict()
             if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
+                item.authors = ReferenceParser._process_authors(data['authors']+'.')
             item.title = data['title'] if data['title'] else ""
             item.url = data['url'] if data['url'] else ""
             item.type = 'web'
@@ -330,40 +345,62 @@ class ReferenceParser:
         if thesis_match:
             data = thesis_match.groupdict()
             if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
+                item.authors = ReferenceParser._process_authors(data['authors']+'.')
             item.title = data['title'] if data['title'] else ""
             item.year = data['year'] if data['year'] else ""
             item.pages = data['pages'] if data['pages'] else ""
             item.type = 'thesis'
             return
         
-        # Если ни один из шаблонов не подошел, используем упрощенный подход
-        # Разбиваем текст на части по точкам
-        parts = text.split('.')
-        
-        # Первая часть обычно содержит авторов
-        if parts and parts[0].strip():
-            first_part = parts[0].strip()
-            
-            # Если в первой части есть запятые и это не URL
-            if ',' in first_part and not re.search(r'https?:|www\.', first_part, re.IGNORECASE):
-                # Пробуем распознать как авторов
-                potential_authors = [a.strip() for a in first_part.split(',') if a.strip()]
+        # Если ни один из шаблонов не подошел, но есть признаки статьи ('//')
+        if '//' in text and not item.journal:
+            # Разбираем по разделителю '//'
+            parts = text.split('//')
+            if len(parts) >= 2:
+                # Первая часть обычно содержит авторов и название
+                first_part = parts[0].strip()
+                # Вторая часть обычно содержит название журнала и метаданные
+                second_part = parts[1].strip()
                 
-                # Если есть хотя бы один автор с инициалами
-                author_pattern = re.compile(r'[А-Яа-яA-Za-z]+\s+[А-Яа-яA-Za-z]\.')
-                if any(author_pattern.search(a) for a in potential_authors):
-                    item.authors = potential_authors
+                # Извлекаем название журнала до первой точки или тире
+                journal_match = re.search(r'^([^\.—]+)', second_part)
+                if journal_match:
+                    item.journal = journal_match.group(1).strip()
+                
+                # Если авторы не определены, пробуем извлечь из первой части
+                if not item.authors:
+                    # Ищем авторов до первой точки
+                    author_match = re.search(r'^(.*?)\.\s+', first_part)
+                    if author_match:
+                        item.authors = ReferenceParser._process_authors(author_match.group(1)+'.')
                     
-                    # Следующая часть может быть названием
-                    if len(parts) > 1:
-                        item.title = parts[1].strip()
-                else:
-                    # Если не похоже на авторов, считаем первую часть названием
-                    item.title = first_part
-            else:
-                # Если нет запятых, считаем первую часть названием
-                item.title = first_part
+                    # Извлекаем название после авторов (после первой точки)
+                    title_match = re.search(r'^.*?\.\s+(.*?)(?:\s+/\s+.*?)?$', first_part)
+                    if title_match:
+                        item.title = title_match.group(1).strip()
+                
+                # Если журнал определен, значит это статья
+                if item.journal:
+                    item.type = 'article'
+                    
+                # Извлекаем дополнительную информацию из второй части
+                year_match = re.search(r'—\s+(\d{4})', second_part)
+                if year_match:
+                    item.year = year_match.group(1)
+                
+                volume_match = re.search(r'Т\.\s+(\d+)', second_part)
+                if volume_match:
+                    item.volume = volume_match.group(1)
+                
+                issue_match = re.search(r'№\s+(\d+)', second_part)
+                if issue_match:
+                    item.issue = issue_match.group(1)
+                
+                pages_match = re.search(r'С\.\s*(\d+(?:.\d+)?)', second_part)
+                if pages_match:
+                    item.pages = pages_match.group(1)
+                
+                return
         
         # Дополнительная информация
         # Издательство
@@ -371,12 +408,6 @@ class ReferenceParser:
         if publisher_match:
             item.publisher = publisher_match.group(1).strip()
             item.type = 'book'
-        
-        # Журнал
-        journal_match = re.search(r'//\s+([^/]+?)(?:\.|\s+—)', text)
-        if journal_match:
-            item.journal = journal_match.group(1).strip()
-            item.type = 'article'
         
         # Год, том, номер, страницы, URL, DOI
         year_match = ReferenceParser.YEAR_PATTERN.search(text)
@@ -427,63 +458,15 @@ class ReferenceParser:
         # Удаляем номер ссылки, если есть
         cleaned_text = re.sub(r'^\[\d+\]\s*', '', text)
         
-        # Пробуем применить шаблоны для разных типов источников
-        # Статья в журнале
-        article_match = ReferenceParser.IEEE_ARTICLE_PATTERN.search(cleaned_text)
-        if article_match:
-            data = article_match.groupdict()
-            if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
-            item.title = data['title'] if data['title'] else ""
-            item.journal = data['journal'] if data['journal'] else ""
-            item.volume = data['volume'] if data['volume'] else ""
-            item.issue = data['issue'] if data['issue'] else ""
-            if data['pages']:
-                item.pages = data['pages']
-            elif data['page']:
-                item.pages = data['page']
-            item.year = data['year'] if data['year'] else ""
-            item.type = 'article'
-            return
-        
-        # Статья в сборнике конференции
-        conference_match = ReferenceParser.IEEE_CONFERENCE_PATTERN.search(cleaned_text)
-        if conference_match:
-            data = conference_match.groupdict()
-            if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
-            item.title = data['title'] if data['title'] else ""
-            item.journal = data['conference'] if data['conference'] else ""
-            if data['pages']:
-                item.pages = data['pages']
-            elif data['page']:
-                item.pages = data['page']
-            item.year = data['year'] if data['year'] else ""
-            item.type = 'conference'
-            return
-        
-        # Книга
-        book_match = ReferenceParser.IEEE_BOOK_PATTERN.search(cleaned_text)
-        if book_match:
-            data = book_match.groupdict()
-            if data['authors']:
-                item.authors = ReferenceParser._process_authors(data['authors'])
-            item.title = data['title'] if data['title'] else ""
-            item.publisher = data['publisher'] if data['publisher'] else ""
-            item.year = data['year'] if data['year'] else ""
-            item.type = 'book'
-            return
-        
-        # Если ни один из шаблонов не подошел, используем более простой подход
-        # Типичный формат IEEE: Авторы, "Название", Журнал/Конференция, детали
-        
-        # Поиск названия в кавычках
+        # Проверяем наличие цитаты в кавычках для определения названия
         title_match = re.search(r'"([^"]+)"', cleaned_text)
         if title_match:
             item.title = title_match.group(1).strip()
             
-            # Текст перед названием обычно содержит авторов
+            # Разбиваем текст по названию
             parts = cleaned_text.split(f'"{item.title}"')
+            
+            # Текст перед названием обычно содержит авторов
             if parts and parts[0]:
                 authors_text = parts[0].strip()
                 if authors_text.endswith(','):
@@ -499,6 +482,53 @@ class ReferenceParser:
                 if journal_match:
                     item.journal = journal_match.group(1).strip()
                     item.type = 'article'
+        else:
+            # Если нет названия в кавычках, пробуем стандартные шаблоны
+            # Статья в журнале
+            article_match = ReferenceParser.IEEE_ARTICLE_PATTERN.search(cleaned_text)
+            if article_match:
+                data = article_match.groupdict()
+                if data['authors']:
+                    item.authors = ReferenceParser._process_authors(data['authors'])
+                item.title = data['title'] if data['title'] else ""
+                item.journal = data['journal'] if data['journal'] else ""
+                item.volume = data['volume'] if data['volume'] else ""
+                item.issue = data['issue'] if data['issue'] else ""
+                if data['pages']:
+                    item.pages = data['pages']
+                elif data['page']:
+                    item.pages = data['page']
+                item.year = data['year'] if data['year'] else ""
+                item.type = 'article'
+                return
+                
+            # Статья в сборнике конференции
+            conference_match = ReferenceParser.IEEE_CONFERENCE_PATTERN.search(cleaned_text)
+            if conference_match:
+                data = conference_match.groupdict()
+                if data['authors']:
+                    item.authors = ReferenceParser._process_authors(data['authors'])
+                item.title = data['title'] if data['title'] else ""
+                item.journal = data['conference'] if data['conference'] else ""
+                if data['pages']:
+                    item.pages = data['pages']
+                elif data['page']:
+                    item.pages = data['page']
+                item.year = data['year'] if data['year'] else ""
+                item.type = 'conference'
+                return
+                
+            # Книга
+            book_match = ReferenceParser.IEEE_BOOK_PATTERN.search(cleaned_text)
+            if book_match:
+                data = book_match.groupdict()
+                if data['authors']:
+                    item.authors = ReferenceParser._process_authors(data['authors'])
+                item.title = data['title'] if data['title'] else ""
+                item.publisher = data['publisher'] if data['publisher'] else ""
+                item.year = data['year'] if data['year'] else ""
+                item.type = 'book'
+                return
         
         # Дополнительная информация
         # Том, номер, страницы, год, DOI
@@ -520,6 +550,23 @@ class ReferenceParser:
                 item.pages = f"{pages_match.group(1)}–{pages_match.group(2)}"
             elif pages_match.group(3):
                 item.pages = pages_match.group(3)
+        
+        # Если страницы не найдены с помощью предыдущего поиска, 
+        # попробуем найти их с помощью общего PAGES_PATTERN
+        if not item.pages:
+            pages_match = ReferenceParser.PAGES_PATTERN.search(cleaned_text)
+            if pages_match:
+                groups = pages_match.groups()
+                if groups[0] and groups[1]:  # C. X-Y
+                    item.pages = f"{groups[0]}–{groups[1]}"
+                elif groups[2] and groups[3]:  # P. X-Y
+                    item.pages = f"{groups[2]}–{groups[3]}"
+                elif groups[4] and groups[5]:  # X-Y
+                    item.pages = f"{groups[4]}–{groups[5]}"
+                elif groups[0]:  # C. X
+                    item.pages = groups[0]
+                elif groups[2]:  # P. X
+                    item.pages = groups[2]
         
         year_match = re.search(r'\b(19|20)\d{2}\b', cleaned_text)
         if year_match:
