@@ -89,21 +89,21 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
         
-        # Вкладка "Ввод и редактирование"
-        self.input_tab = QWidget()
-        self.tabs.addTab(self.input_tab, "Ввод и редактирование")
+        # # Вкладка "Ввод и редактирование"
+        # self.input_tab = QWidget()
+        # self.tabs.addTab(self.input_tab, "Ввод и редактирование")
         
-        # Вкладка "Проверка критериев"
-        self.criteria_tab = QWidget()
-        self.tabs.addTab(self.criteria_tab, "Проверка критериев")
+        # # Вкладка "Проверка критериев"
+        # self.criteria_tab = QWidget()
+        # self.tabs.addTab(self.criteria_tab, "Проверка критериев")
         
-        # Вкладка "Поиск источников"
-        self.search_tab = QWidget()
-        self.tabs.addTab(self.search_tab, "Поиск источников")
+        # # Вкладка "Поиск источников"
+        # self.search_tab = QWidget()
+        # self.tabs.addTab(self.search_tab, "Поиск источников")
         
-        # Вкладка "Форматирование и экспорт"
-        self.export_tab = QWidget()
-        self.tabs.addTab(self.export_tab, "Форматирование и экспорт")
+        # # Вкладка "Форматирование и экспорт"
+        # self.export_tab = QWidget()
+        # self.tabs.addTab(self.export_tab, "Форматирование и экспорт")
     
     def on_import(self):
         """Обработчик импорта из файла"""

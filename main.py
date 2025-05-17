@@ -6,8 +6,6 @@ from PyQt5.QtWidgets import QApplication
 from controllers.main_controller import MainController
 from models.app_model import AppModel
 from views.main_window import MainWindow
-from views.convert_tab import ConvertTab
-from controllers.convert_controller import ConvertController
 
 def main():
     """Точка входа в приложение"""
