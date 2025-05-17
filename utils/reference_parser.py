@@ -372,7 +372,7 @@ class ReferenceParser:
                     # Ищем авторов до первой точки
                     author_match = re.search(r'^(.*?)\.\s+', first_part)
                     if author_match:
-                        item.authors = ReferenceParser._process_authors(author_match.group(1)+'.')
+                        item.authors = ReferenceParser._process_authors(author_match.group(1))
                     
                     # Извлекаем название после авторов (после первой точки)
                     title_match = re.search(r'^.*?\.\s+(.*?)(?:\s+/\s+.*?)?$', first_part)
