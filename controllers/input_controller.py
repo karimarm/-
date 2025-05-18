@@ -23,7 +23,9 @@ class InputController:
         
         # Привязка сигналов представления к методам контроллера
         self.view.add_bibliography_signal.connect(self.add_bibliography)
+        self.view.add_structured_bibliography_signal.connect(self.add_structured_bibliography)
         self.view.edit_bibliography_signal.connect(self.edit_bibliography)
+        self.view.update_item_property_signal.connect(self.update_item_property)
         self.view.parse_text_signal.connect(self.parse_text)
         self.view.remove_item_signal.connect(self.remove_item)
         
@@ -102,4 +104,44 @@ class InputController:
     
     def update_view(self):
         """Обновление представления списка библиографических ссылок"""
-        self.view.update_bibliography_list(self.model.bibliography_list) 
+        self.view.update_bibliography_list(self.model.bibliography_list)
+    
+    def add_structured_bibliography(self, data):
+        """
+        Добавление новой библиографической ссылки из структурированных данных
+        
+        Args:
+            data (dict): Словарь с данными библиографической записи
+        """
+        if not data or not data.get('title'):
+            return
+        
+        # Создание объекта библиографической записи из словаря
+        item = BibliographyItem.from_dict(data)
+        
+        # Устанавливаем сырой текст ссылки (полную библиографическую ссылку)
+        if 'raw_text' in data and data['raw_text']:
+            item.raw_text = data['raw_text']
+        elif 'full_reference' in data and data['full_reference']:
+            item.raw_text = data['full_reference']
+        
+        # Добавление в модель
+        self.model.add_bibliography_item(item)
+        
+        # Обновление представления
+        self.update_view()
+    
+    def update_item_property(self, index, property_name, value):
+        """
+        Обновление свойства библиографической записи
+        
+        Args:
+            index (int): Индекс записи
+            property_name (str): Имя свойства
+            value: Новое значение
+        """
+        if index < 0 or index >= len(self.model.bibliography_list):
+            return
+            
+        # Обновление свойства
+        setattr(self.model.bibliography_list[index], property_name, value) 

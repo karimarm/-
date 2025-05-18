@@ -42,8 +42,15 @@ class CriteriaController:
             self.view.display_statistics("Библиографический список пуст")
             return
         
+        # Временное обновление критериев в модели для корректного расчета статистики
+        original_criteria = self.model.criteria.copy()
+        self.model.criteria = criteria
+        
         # Вычисление статистики
         stats = self.calculate_statistics(bib_list)
+        
+        # Восстановление оригинальных критериев, если пользователь не сохранил их
+        self.model.criteria = original_criteria
         
         # Проверка на соответствие критериям
         results = self.check_compliance(stats, criteria)
@@ -77,9 +84,11 @@ class CriteriaController:
         english_count = sum(1 for item in bib_list if item.language == 'en')
         english_percent = round((english_count / total_items) * 100, 2) if total_items > 0 else 0
         
+        # Получение года для свежих источников из критериев
+        recent_year = self.model.criteria.get('min_recent_year', 2000)
+        
         # Количество и процент свежих источников
-        recent_year = self.model.criteria.get('min_recent_year', 2020)
-        recent_count = sum(1 for item in bib_list if item.year and int(item.year) >= recent_year)
+        recent_count = sum(1 for item in bib_list if item.year and item.year.isdigit() and int(item.year) >= recent_year)
         recent_percent = round((recent_count / total_items) * 100, 2) if total_items > 0 else 0
         
         # Количество и процент источников ВАК
@@ -90,6 +99,9 @@ class CriteriaController:
         rinc_count = sum(1 for item in bib_list if item.is_rinc)
         rinc_percent = round((rinc_count / total_items) * 100, 2) if total_items > 0 else 0
         
+        # Получение указанного автора из критериев
+        specified_author = self.model.criteria.get('specified_author', '').strip()
+        
         # Подсчет источников по авторам
         author_counter = Counter()
         for item in bib_list:
@@ -98,13 +110,22 @@ class CriteriaController:
                 first_author = item.authors[0]
                 author_counter[first_author] += 1
         
-        # Автор с наибольшим количеством источников
-        most_common_author = author_counter.most_common(1)
-        if most_common_author:
-            author_name, author_count = most_common_author[0]
-            author_percent = round((author_count / total_items) * 100, 2) if total_items > 0 else 0
+        # Статистика по указанному автору
+        if specified_author:
+            # Подсчет источников с указанным автором (в любой позиции, не только первым)
+            specified_author_count = sum(1 for item in bib_list if specified_author in item.authors)
+            specified_author_percent = round((specified_author_count / total_items) * 100, 2) if total_items > 0 else 0
         else:
-            author_name, author_count, author_percent = "Нет", 0, 0
+            # Если автор не указан, используем автора с наибольшим количеством источников
+            most_common_author = author_counter.most_common(1)
+            if most_common_author:
+                specified_author = most_common_author[0][0]
+                specified_author_count = most_common_author[0][1]
+                specified_author_percent = round((specified_author_count / total_items) * 100, 2) if total_items > 0 else 0
+            else:
+                specified_author = "Нет"
+                specified_author_count = 0
+                specified_author_percent = 0
         
         # Типы источников
         types_counter = Counter(item.type for item in bib_list)
@@ -127,10 +148,10 @@ class CriteriaController:
             'vak_percent': vak_percent,
             'rinc_count': rinc_count,
             'rinc_percent': rinc_percent,
-            'most_common_author': {
-                'name': author_name,
-                'count': author_count,
-                'percent': author_percent
+            'specified_author': {
+                'name': specified_author,
+                'count': specified_author_count,
+                'percent': specified_author_percent
             },
             'type_stats': dict(types_counter),
             'year_stats': {
@@ -155,53 +176,100 @@ class CriteriaController:
         """
         results = {}
         
-        # Проверка процента источников на английском языке
-        min_english_percent = criteria.get('min_english_percent', 0)
-        english_match = stats['english_percent'] >= min_english_percent
+        # Проверка источников на английском языке
+        english_criteria_type = criteria.get('english_criteria_type', 'percent')
+        if english_criteria_type == 'percent':
+            min_english_percent = criteria.get('min_english_percent', 0)
+            english_match = stats['english_percent'] >= min_english_percent
+            required_value = f"≥ {min_english_percent}%"
+        else:
+            min_english_count = criteria.get('min_english_count', 0)
+            english_match = stats['english_count'] >= min_english_count
+            required_value = f"≥ {min_english_count} шт."
+            
         results['english'] = {
             'name': "Источники на английском языке",
-            'required': f"≥ {min_english_percent}%",
+            'required': required_value,
             'current': f"{stats['english_percent']}% ({stats['english_count']} из {stats['total_items']})",
             'match': english_match
         }
         
-        # Проверка процента свежих источников
-        min_recent_percent = criteria.get('min_recent_percent', 0)
-        recent_match = stats['recent_percent'] >= min_recent_percent
+        # Проверка свежих источников
+        recent_criteria_type = criteria.get('recent_criteria_type', 'percent')
+        if recent_criteria_type == 'percent':
+            min_recent_percent = criteria.get('min_recent_percent', 0)
+            recent_match = stats['recent_percent'] >= min_recent_percent
+            required_value = f"≥ {min_recent_percent}%"
+        else:
+            min_recent_count = criteria.get('min_recent_count', 0)
+            recent_match = stats['recent_count'] >= min_recent_count
+            required_value = f"≥ {min_recent_count} шт."
+            
         results['recent'] = {
             'name': f"Источники свежее {stats['recent_year']} года",
-            'required': f"≥ {min_recent_percent}%",
+            'required': required_value,
             'current': f"{stats['recent_percent']}% ({stats['recent_count']} из {stats['total_items']})",
             'match': recent_match
         }
         
-        # Проверка процента источников ВАК
-        min_vak_percent = criteria.get('min_vak_percent', 0)
-        vak_match = stats['vak_percent'] >= min_vak_percent
+        # Проверка источников ВАК
+        vak_criteria_type = criteria.get('vak_criteria_type', 'percent')
+        if vak_criteria_type == 'percent':
+            min_vak_percent = criteria.get('min_vak_percent', 0)
+            vak_match = stats['vak_percent'] >= min_vak_percent
+            required_value = f"≥ {min_vak_percent}%"
+        else:
+            min_vak_count = criteria.get('min_vak_count', 0)
+            vak_match = stats['vak_count'] >= min_vak_count
+            required_value = f"≥ {min_vak_count} шт."
+            
         results['vak'] = {
             'name': "Источники ВАК",
-            'required': f"≥ {min_vak_percent}%",
+            'required': required_value,
             'current': f"{stats['vak_percent']}% ({stats['vak_count']} из {stats['total_items']})",
             'match': vak_match
         }
         
-        # Проверка процента источников РИНЦ
-        min_rinc_percent = criteria.get('min_rinc_percent', 0)
-        rinc_match = stats['rinc_percent'] >= min_rinc_percent
+        # Проверка источников РИНЦ
+        rinc_criteria_type = criteria.get('rinc_criteria_type', 'percent')
+        if rinc_criteria_type == 'percent':
+            min_rinc_percent = criteria.get('min_rinc_percent', 0)
+            rinc_match = stats['rinc_percent'] >= min_rinc_percent
+            required_value = f"≥ {min_rinc_percent}%"
+        else:
+            min_rinc_count = criteria.get('min_rinc_count', 0)
+            rinc_match = stats['rinc_count'] >= min_rinc_count
+            required_value = f"≥ {min_rinc_count} шт."
+            
         results['rinc'] = {
             'name': "Источники РИНЦ",
-            'required': f"≥ {min_rinc_percent}%",
+            'required': required_value,
             'current': f"{stats['rinc_percent']}% ({stats['rinc_count']} из {stats['total_items']})",
             'match': rinc_match
         }
         
-        # Проверка максимального процента источников одного автора
-        max_author_percent = criteria.get('max_single_author_percent', 100)
-        author_match = stats['most_common_author']['percent'] <= max_author_percent
+        # Проверка источников указанного автора
+        author_criteria_type = criteria.get('author_criteria_type', 'percent')
+        specified_author_name = criteria.get('specified_author', '')
+        
+        if specified_author_name:
+            author_label = f"Источники с автором: {specified_author_name}"
+        else:
+            author_label = "Источники наиболее представленного автора"
+            
+        if author_criteria_type == 'percent':
+            max_author_percent = criteria.get('max_single_author_percent', 100)
+            author_match = stats['specified_author']['percent'] <= max_author_percent
+            required_value = f"≤ {max_author_percent}%"
+        else:
+            max_author_count = criteria.get('max_single_author_count', 1000)
+            author_match = stats['specified_author']['count'] <= max_author_count
+            required_value = f"≤ {max_author_count} шт."
+            
         results['author'] = {
-            'name': "Источники одного автора",
-            'required': f"≤ {max_author_percent}%",
-            'current': f"{stats['most_common_author']['percent']}% ({stats['most_common_author']['count']} из {stats['total_items']})",
+            'name': author_label,
+            'required': required_value,
+            'current': f"{stats['specified_author']['percent']}% ({stats['specified_author']['count']} из {stats['total_items']})",
             'match': author_match
         }
         
@@ -240,7 +308,13 @@ class CriteriaController:
             result += "- Нет данных о годах публикаций\n\n"
         
         result += "Авторство:\n"
-        result += f"- Автор с наибольшим числом источников: {stats['most_common_author']['name']} ({stats['most_common_author']['count']} источников, {stats['most_common_author']['percent']}%)\n\n"
+        if stats['specified_author']['name'] != "Нет":
+            if self.model.criteria.get('specified_author'):
+                result += f"- Указанный автор: {stats['specified_author']['name']} ({stats['specified_author']['count']} источников, {stats['specified_author']['percent']}%)\n\n"
+            else:
+                result += f"- Автор с наибольшим числом источников: {stats['specified_author']['name']} ({stats['specified_author']['count']} источников, {stats['specified_author']['percent']}%)\n\n"
+        else:
+            result += "- Нет данных об авторах\n\n"
         
         result += "Научная аттестация:\n"
         result += f"- Источники ВАК: {stats['vak_count']} ({stats['vak_percent']}%)\n"

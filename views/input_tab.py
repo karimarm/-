@@ -5,11 +5,324 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QTextEdit, QPushButton, QComboBox, QGridLayout, 
     QGroupBox, QListWidget, QListWidgetItem, QSplitter, 
-    QFormLayout, QRadioButton, QButtonGroup
+    QFormLayout, QRadioButton, QButtonGroup, QTableView,
+    QHeaderView, QAbstractItemView
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QAbstractTableModel, QModelIndex
 from PyQt5.QtGui import QFont
 from datetime import datetime
+
+class BibliographyTableModel(QAbstractTableModel):
+    """
+    Модель данных для таблицы библиографических ссылок.
+    """
+    
+    def __init__(self, items=None):
+        super().__init__()
+        self.items = items or []
+        self.filtered_items = []
+        self.filter_text = ""
+        self.headers = [
+            "Библиографическая ссылка", 
+            "Авторы", 
+            "Название", 
+            "Год", 
+            "Источник", 
+            "Страницы",
+            "Тип",
+            "ВАК",
+            "РИНЦ",
+            "Язык",
+            "DOI/URL"
+        ]
+        self._apply_filter()
+    
+    def rowCount(self, parent=QModelIndex()):
+        return len(self.filtered_items)
+    
+    def columnCount(self, parent=QModelIndex()):
+        return len(self.headers)
+    
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid() or not (0 <= index.row() < len(self.filtered_items)):
+            return None
+        
+        item = self.filtered_items[index.row()]
+        
+        if role == Qt.DisplayRole:
+            col = index.column()
+            if col == 0:  # Полная библиографическая ссылка
+                # Сначала пробуем использовать raw_text, если он есть
+                if hasattr(item, 'raw_text') and item.raw_text:
+                    return item.raw_text
+                # Потом проверяем 'full_reference'
+                if hasattr(item, 'full_reference') and item.full_reference:
+                    return item.full_reference
+                # В крайнем случае используем строковое представление
+                return str(item)
+            elif col == 1:  # Авторы
+                if hasattr(item, 'authors'):
+                    if isinstance(item.authors, list):
+                        return ", ".join(item.authors)
+                    return str(item.authors)
+                return ""
+            elif col == 2:  # Название
+                return getattr(item, 'title', "")
+            elif col == 3:  # Год
+                return getattr(item, 'year', "")
+            elif col == 4:  # Источник (журнал/издательство)
+                if hasattr(item, 'journal') and item.journal:
+                    return item.journal
+                return getattr(item, 'publisher', "")
+            elif col == 5:  # Страницы
+                return getattr(item, 'pages', "")
+            elif col == 6:  # Тип
+                # Перевод типа в читаемый вид
+                type_value = getattr(item, 'type', "")
+                type_mapping = {
+                    "book": "Книга",
+                    "article": "Статья", 
+                    "web": "Веб-ресурс",
+                    "other": "Другое"
+                }
+                return type_mapping.get(type_value, type_value)
+            elif col == 7:  # ВАК
+                return "Да" if getattr(item, 'is_vak', False) else "Нет"
+            elif col == 8:  # РИНЦ
+                return "Да" if getattr(item, 'is_rinc', False) else "Нет"
+            elif col == 9:  # Язык
+                lang = getattr(item, 'language', 'ru')
+                return "Английский" if lang == 'en' else "Русский"
+            elif col == 10:  # DOI/URL
+                doi = getattr(item, 'doi', "")
+                url = getattr(item, 'url', "")
+                if doi:
+                    return f"DOI: {doi}"
+                elif url:
+                    return f"URL: {url}"
+                return ""
+        
+        # Для чекбоксов ВАК и РИНЦ добавим роль Qt.CheckStateRole
+        elif role == Qt.CheckStateRole:
+            col = index.column()
+            if col == 7:  # ВАК
+                return Qt.Checked if getattr(item, 'is_vak', False) else Qt.Unchecked
+            elif col == 8:  # РИНЦ
+                return Qt.Checked if getattr(item, 'is_rinc', False) else Qt.Unchecked
+        
+        return None
+    
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self.headers[section]
+        return None
+    
+    def setItems(self, items):
+        self.beginResetModel()
+        self.items = items
+        self._apply_filter()
+        self.endResetModel()
+    
+    def set_filter(self, filter_text):
+        """
+        Установка фильтра для отображаемых элементов
+        
+        Args:
+            filter_text (str): Текст для фильтрации
+        """
+        self.filter_text = filter_text.lower()
+        self.beginResetModel()
+        self._apply_filter()
+        self.endResetModel()
+    
+    def _apply_filter(self):
+        """Применение фильтра к элементам"""
+        if not self.filter_text:
+            self.filtered_items = self.items
+            return
+        
+        self.filtered_items = []
+        for item in self.items:
+            # Получаем строковое представление для поиска
+            item_str = str(item).lower()
+            
+            # Проверяем авторов
+            authors_match = False
+            if hasattr(item, 'authors'):
+                if isinstance(item.authors, list):
+                    authors_match = any(self.filter_text in author.lower() for author in item.authors)
+                else:
+                    authors_match = self.filter_text in str(item.authors).lower()
+            
+            # Проверяем другие поля
+            title_match = self.filter_text in getattr(item, 'title', "").lower()
+            year_match = self.filter_text in getattr(item, 'year', "").lower()
+            journal_match = self.filter_text in getattr(item, 'journal', "").lower()
+            publisher_match = self.filter_text in getattr(item, 'publisher', "").lower()
+            
+            # Проверка по новым полям
+            doi_match = self.filter_text in getattr(item, 'doi', "").lower()
+            url_match = self.filter_text in getattr(item, 'url', "").lower()
+            
+            # Проверка по флагам ВАК и РИНЦ
+            vak_match = (self.filter_text in "вак" and getattr(item, 'is_vak', False))
+            rinc_match = (self.filter_text in "ринц" and getattr(item, 'is_rinc', False))
+            
+            # Проверка по языку
+            language = getattr(item, 'language', 'ru')
+            language_match = (
+                (self.filter_text in "русский" and language == 'ru') or
+                (self.filter_text in "английский" and language == 'en')
+            )
+            
+            # Если хотя бы одно совпадение, добавляем в отфильтрованный список
+            if (self.filter_text in item_str or authors_match or title_match or 
+                year_match or journal_match or publisher_match or doi_match or 
+                url_match or vak_match or rinc_match or language_match):
+                self.filtered_items.append(item)
+    
+    def sort(self, column, order):
+        """
+        Сортировка элементов по указанной колонке
+        
+        Args:
+            column (int): Индекс колонки для сортировки
+            order (Qt.SortOrder): Порядок сортировки
+        """
+        self.beginResetModel()
+        
+        # Ключ для сортировки в зависимости от колонки
+        if column == 0:  # Полная ссылка
+            key = lambda x: getattr(x, 'full_reference', str(x))
+        elif column == 1:  # Авторы
+            def authors_key(x):
+                if hasattr(x, 'authors'):
+                    if isinstance(x.authors, list):
+                        return ", ".join(x.authors)
+                    return str(x.authors)
+                return ""
+            key = authors_key
+        elif column == 2:  # Название
+            key = lambda x: getattr(x, 'title', "")
+        elif column == 3:  # Год
+            # Используем числовое значение года для сортировки, если доступно
+            def year_key(x):
+                if hasattr(x, 'year_int') and isinstance(x.year_int, int):
+                    return x.year_int
+                year = getattr(x, 'year', "")
+                try:
+                    return int(year)
+                except (ValueError, TypeError):
+                    return 0
+            key = year_key
+        elif column == 4:  # Источник
+            def source_key(x):
+                if hasattr(x, 'journal') and x.journal:
+                    return x.journal
+                return getattr(x, 'publisher', "")
+            key = source_key
+        elif column == 5:  # Страницы
+            key = lambda x: getattr(x, 'pages', "")
+        elif column == 6:  # Тип
+            key = lambda x: getattr(x, 'type', "")
+        elif column == 7:  # ВАК
+            key = lambda x: "Да" if getattr(x, 'is_vak', False) else "Нет"
+        elif column == 8:  # РИНЦ
+            key = lambda x: "Да" if getattr(x, 'is_rinc', False) else "Нет"
+        elif column == 9:  # Язык
+            key = lambda x: getattr(x, 'language', 'ru')
+        elif column == 10:  # DOI/URL
+            key = lambda x: getattr(x, 'doi', "") or getattr(x, 'url', "")
+        else:
+            key = lambda x: str(x)
+        
+        reverse = (order == Qt.DescendingOrder)
+        self.items.sort(key=key, reverse=reverse)
+        
+        self._apply_filter()
+        self.endResetModel()
+    
+    def get_original_index(self, filtered_index):
+        """
+        Получение индекса в исходном списке по индексу в отфильтрованном списке
+        
+        Args:
+            filtered_index (int): Индекс в отфильтрованном списке
+            
+        Returns:
+            int: Индекс в исходном списке или -1, если не найден
+        """
+        if 0 <= filtered_index < len(self.filtered_items):
+            item = self.filtered_items[filtered_index]
+            try:
+                return self.items.index(item)
+            except ValueError:
+                return -1
+        return -1
+
+    def setData(self, index, value, role=Qt.EditRole):
+        """
+        Изменение данных в модели
+        
+        Args:
+            index (QModelIndex): Индекс изменяемого элемента
+            value: Новое значение
+            role: Роль данных
+            
+        Returns:
+            bool: True, если данные успешно изменены, False в противном случае
+        """
+        if not index.isValid() or not (0 <= index.row() < len(self.filtered_items)):
+            return False
+        
+        # Получаем индекс в оригинальном списке
+        original_index = self.get_original_index(index.row())
+        if original_index < 0:
+            return False
+            
+        item = self.items[original_index]
+        col = index.column()
+        
+        # Обработка чекбоксов
+        if role == Qt.CheckStateRole:
+            if col == 7:  # ВАК
+                item.is_vak = (value == Qt.Checked)
+                self.dataChanged.emit(index, index)
+                # Сигнал для уведомления контроллера
+                if hasattr(self, 'parent') and hasattr(self.parent(), 'update_item_property_signal'):
+                    self.parent().update_item_property_signal.emit(original_index, 'is_vak', item.is_vak)
+                return True
+            elif col == 8:  # РИНЦ
+                item.is_rinc = (value == Qt.Checked)
+                self.dataChanged.emit(index, index)
+                # Сигнал для уведомления контроллера
+                if hasattr(self, 'parent') and hasattr(self.parent(), 'update_item_property_signal'):
+                    self.parent().update_item_property_signal.emit(original_index, 'is_rinc', item.is_rinc)
+                return True
+        
+        return False
+    
+    def flags(self, index):
+        """
+        Определение флагов для элементов таблицы
+        
+        Args:
+            index (QModelIndex): Индекс элемента
+            
+        Returns:
+            Qt.ItemFlags: Флаги элемента
+        """
+        if not index.isValid():
+            return Qt.NoItemFlags
+            
+        flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        
+        # Добавляем флаг Qt.ItemIsUserCheckable для колонок с чекбоксами
+        col = index.column()
+        if col == 7 or col == 8:  # ВАК или РИНЦ
+            flags |= Qt.ItemIsUserCheckable
+            
+        return flags
 
 class InputTab(QWidget):
     """
@@ -18,7 +331,9 @@ class InputTab(QWidget):
     
     # Сигналы для взаимодействия с контроллером
     add_bibliography_signal = pyqtSignal(str, str)  # текст, тип формата
+    add_structured_bibliography_signal = pyqtSignal(dict)  # словарь с структурированными данными
     edit_bibliography_signal = pyqtSignal(str, int, str)  # текст, индекс, тип формата
+    update_item_property_signal = pyqtSignal(int, str, object)  # индекс, имя свойства, значение
     parse_text_signal = pyqtSignal(str)  # текст для распознавания
     remove_item_signal = pyqtSignal(int)  # индекс удаляемого элемента
     
@@ -181,10 +496,54 @@ class InputTab(QWidget):
         right_widget = QWidget()
         right_layout = QVBoxLayout(right_widget)
         
-        right_layout.addWidget(QLabel("Библиографический список:"))
+        # Заголовок и поиск
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(QLabel("Библиографический список:"))
         
-        # Список библиографических ссылок
-        self.bibliography_list = QListWidget()
+        # Поле поиска
+        search_layout = QHBoxLayout()
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("Поиск по таблице...")
+        search_layout.addWidget(self.search_edit)
+        
+        self.search_button = QPushButton("Поиск")
+        search_layout.addWidget(self.search_button)
+        
+        self.clear_search_button = QPushButton("Сброс")
+        search_layout.addWidget(self.clear_search_button)
+        
+        header_layout.addLayout(search_layout)
+        right_layout.addLayout(header_layout)
+        
+        # Таблица библиографических ссылок
+        self.bibliography_list = QTableView()
+        self.bibliography_model = BibliographyTableModel()
+        self.bibliography_model.parent = lambda: self  # Устанавливаем родительский виджет
+        self.bibliography_list.setModel(self.bibliography_model)
+        
+        # Настройка отображения таблицы
+        self.bibliography_list.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.bibliography_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.bibliography_list.setAlternatingRowColors(True)
+        self.bibliography_list.setSortingEnabled(True)
+        
+        # Настройка заголовков таблицы
+        header = self.bibliography_list.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)  # Полная ссылка растягивается
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Авторы
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Название
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Год
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Источник
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # Страницы
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Тип
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # ВАК
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # РИНЦ
+        header.setSectionResizeMode(9, QHeaderView.ResizeToContents)  # Язык
+        header.setSectionResizeMode(10, QHeaderView.ResizeToContents)  # DOI/URL
+        
+        # Двойной клик для редактирования
+        self.bibliography_list.doubleClicked.connect(self.on_edit_item)
+        
         right_layout.addWidget(self.bibliography_list)
         
         # Кнопки для работы со списком
@@ -224,8 +583,16 @@ class InputTab(QWidget):
         self.remove_button.clicked.connect(self.on_remove_item)
         self.clear_list_button.clicked.connect(self.on_clear_list)
         
+        # Поиск
+        self.search_button.clicked.connect(self.on_search)
+        self.clear_search_button.clicked.connect(self.on_clear_search)
+        self.search_edit.returnPressed.connect(self.on_search)
+        
         # Изменение типа источника
         self.source_type_combo.currentIndexChanged.connect(self.on_source_type_changed)
+        
+        # Обработка сортировки таблицы
+        self.bibliography_list.horizontalHeader().sectionClicked.connect(self.on_header_clicked)
     
     def on_add_text(self):
         """Обработчик добавления текста библиографической ссылки"""
@@ -247,13 +614,27 @@ class InputTab(QWidget):
     
     def on_add_form(self):
         """Обработчик добавления данных из формы"""
-        # Формирование строки библиографической ссылки из данных формы
+        # Получение данных из формы
         data = self.get_form_data()
-        text = self.format_from_form_data(data)
         
-        if text:
-            format_type = "GOST"  # Форма всегда формирует в формате ГОСТ
-            self.add_bibliography_signal.emit(text, format_type)
+        # Проверка наличия обязательных полей
+        if not data['title']:
+            return
+        
+        # Формирование текстовой строки полной библиографической ссылки
+        full_reference = self.format_from_form_data(data)
+        
+        if full_reference:
+            # Сохраняем полную ссылку в данных
+            data['raw_text'] = full_reference
+            data['full_reference'] = full_reference
+            
+            # Для дополнительной надежности создаем отдельную копию данных
+            import copy
+            send_data = copy.deepcopy(data)
+            
+            # Эмитируем сигнал со структурированными данными
+            self.add_structured_bibliography_signal.emit(send_data)
             self.clear_form()
     
     def on_clear_form(self):
@@ -276,50 +657,73 @@ class InputTab(QWidget):
         self.is_rinc_check.setChecked(False)
     
     def on_edit_item(self):
-        """Обработчик редактирования выбранного элемента списка"""
-        selected_items = self.bibliography_list.selectedItems()
-        if selected_items:
-            item = selected_items[0]
-            text = item.text()
-            index = self.bibliography_list.row(item)
-            
-            # Заполнение текстового поля для редактирования
-            self.text_edit.setText(text)
-            
-            # Временное изменение кнопки "Добавить" на "Обновить"
-            self.add_button.setText("Обновить")
-            self.add_button.clicked.disconnect(self.on_add_text)
-            self.add_button.clicked.connect(lambda: self.on_update_text(index))
+        """Обработчик редактирования выбранного элемента таблицы"""
+        selected_indexes = self.bibliography_list.selectionModel().selectedRows()
+        if selected_indexes:
+            filtered_row = selected_indexes[0].row()
+            # Получаем индекс в оригинальном (нефильтрованном) списке
+            original_row = self.bibliography_model.get_original_index(filtered_row)
+            if original_row >= 0:
+                item = self.bibliography_model.items[original_row]
+                
+                # Заполнение текстового поля для редактирования
+                self.text_edit.setText(str(item))
+                
+                # Сохраняем текущее состояние кнопки и подключения
+                self.add_button_text = self.add_button.text()
+                
+                # Временно изменяем кнопку "Добавить" на "Обновить"
+                self.add_button.setText("Обновить")
+                
+                try:
+                    # Попытка отключить сигнал, если он подключен
+                    self.add_button.clicked.disconnect(self.on_add_text)
+                except TypeError:
+                    # Если сигнал не был подключен, просто продолжаем
+                    pass
+                
+                # Подключаем новый обработчик
+                self.add_button.clicked.connect(lambda: self.on_update_text(original_row))
     
-    def on_update_text(self, index):
+    def on_update_text(self, row_index):
         """
         Обработчик обновления текста библиографической ссылки
         
         Args:
-            index (int): Индекс обновляемого элемента
+            row_index (int): Индекс строки обновляемого элемента
         """
         text = self.text_edit.toPlainText().strip()
         if text:
             format_type = self.format_combo.currentText()
-            self.edit_bibliography_signal.emit(text, index, format_type)
+            self.edit_bibliography_signal.emit(text, row_index, format_type)
             self.text_edit.clear()
             
-            # Возвращение кнопки "Обновить" в состояние "Добавить"
-            self.add_button.setText("Добавить")
-            self.add_button.clicked.disconnect()
+            # Восстановление исходного состояния кнопки
+            self.add_button.setText(self.add_button_text)
+            
+            try:
+                # Пытаемся отключить текущий сигнал
+                self.add_button.clicked.disconnect()
+            except TypeError:
+                # Если возникла ошибка, игнорируем ее
+                pass
+                
+            # Подключаем обратно исходный обработчик
             self.add_button.clicked.connect(self.on_add_text)
     
     def on_remove_item(self):
-        """Обработчик удаления выбранного элемента списка"""
-        selected_items = self.bibliography_list.selectedItems()
-        if selected_items:
-            item = selected_items[0]
-            index = self.bibliography_list.row(item)
-            self.remove_item_signal.emit(index)
+        """Обработчик удаления выбранного элемента таблицы"""
+        selected_indexes = self.bibliography_list.selectionModel().selectedRows()
+        if selected_indexes:
+            filtered_row = selected_indexes[0].row()
+            # Получаем индекс в оригинальном (нефильтрованном) списке
+            original_row = self.bibliography_model.get_original_index(filtered_row)
+            if original_row >= 0:
+                self.remove_item_signal.emit(original_row)
     
     def on_clear_list(self):
         """Обработчик очистки списка библиографических ссылок"""
-        self.bibliography_list.clear()
+        self.bibliography_model.setItems([])
     
     def on_source_type_changed(self, index):
         """
@@ -354,25 +758,59 @@ class InputTab(QWidget):
         Returns:
             dict: Словарь с данными из формы
         """
-        data = {
-            'type': self.source_type_combo.currentText(),
-            'authors': self.authors_edit.text(),
-            'title': self.title_edit.text(),
-            'subtitle': self.subtitle_edit.text(),
-            'year': self.year_edit.text(),
-            'city': self.city_edit.text(),
-            'edition': self.edition_edit.text(),
-            'publisher': self.publisher_edit.text(),
-            'journal': self.journal_edit.text(),
-            'volume': self.volume_edit.text(),
-            'issue': self.issue_edit.text(),
-            'pages': self.pages_edit.text(),
-            'url': self.url_edit.text(),
-            'doi': self.doi_edit.text(),
-            'language': 'ru' if self.ru_radio.isChecked() else 'en',
-            'is_vak': self.is_vak_check.isChecked(),
-            'is_rinc': self.is_rinc_check.isChecked()
+        # Получение типа источника и преобразование в стандартное значение
+        source_type_text = self.source_type_combo.currentText()
+        type_mapping = {
+            "Книга": "book",
+            "Статья": "article",
+            "Веб-ресурс": "web",
+            "Другое": "other"
         }
+        source_type = type_mapping.get(source_type_text, "other")
+        
+        # Обработка авторов - разделение строки на список авторов
+        authors_text = self.authors_edit.text().strip()
+        authors_list = [author.strip() for author in authors_text.split(",") if author.strip()]
+        
+        # Обработка страниц
+        pages = self.pages_edit.text().strip()
+        
+        # Проверка признаков ВАК и РИНЦ
+        is_vak = self.is_vak_check.isChecked()
+        is_rinc = self.is_rinc_check.isChecked()
+        
+        # Определение языка
+        language = 'en' if self.en_radio.isChecked() else 'ru'
+        
+        # Основные данные
+        data = {
+            'type': source_type,
+            'authors': authors_list,
+            'title': self.title_edit.text().strip(),
+            'subtitle': self.subtitle_edit.text().strip(),
+            'year': self.year_edit.text().strip(),
+            'city': self.city_edit.text().strip(),
+            'edition': self.edition_edit.text().strip(),
+            'publisher': self.publisher_edit.text().strip(),
+            'journal': self.journal_edit.text().strip(),
+            'volume': self.volume_edit.text().strip(),
+            'issue': self.issue_edit.text().strip(),
+            'pages': pages,
+            'url': self.url_edit.text().strip(),
+            'doi': self.doi_edit.text().strip(),
+            'language': language,
+            'is_vak': is_vak,
+            'is_rinc': is_rinc
+        }
+        
+        # Добавление дополнительных вычисляемых полей
+        year_int = 0
+        if data['year'] and data['year'].isdigit():
+            year_int = int(data['year'])
+            
+        data['year_int'] = year_int
+        data['has_english'] = (language == 'en')
+        
         return data
     
     def format_from_form_data(self, data):
@@ -388,12 +826,24 @@ class InputTab(QWidget):
         if not data['title']:
             return ""
         
+        # Форматирование в зависимости от типа источника
+        if data['type'] == "book" or data['type'] == "Книга":
+            return self._format_book(data)
+        elif data['type'] == "article" or data['type'] == "Статья":
+            return self._format_article(data)
+        elif data['type'] == "web" or data['type'] == "Веб-ресурс":
+            return self._format_web_resource(data)
+        else:
+            return self._format_generic(data)
+    
+    def _format_book(self, data):
+        """Форматирование книги по ГОСТ"""
         result = ""
         
         # Добавление авторов
         if data['authors']:
-            result += data['authors']
-            result += " "
+            result += ", ".join(data['authors'])
+            result += ". "
         
         # Добавление названия
         result += data['title']
@@ -402,85 +852,186 @@ class InputTab(QWidget):
         if data['subtitle']:
             result += " : " + data['subtitle']
         
-        # В зависимости от типа источника
-        if data['type'] == "Книга":
-            # Добавление сведений об ответственности (авторы после косой черты)
-            if data['authors']:
-                result += " / " + data['authors']
-            result += " "
-            
-            # Добавление сведений об издании
-            if data['edition']:
-                result += "— " + data['edition'] + "-е изд. "
-            
-            # Добавление места издания и издательства
-            if data['city'] or data['publisher']:
-                result += "— "
-                if data['city']:
-                    result += data['city']
-                    if data['publisher']:
-                        result += " : "
+        # Добавление сведений об ответственности (авторы после косой черты)
+        if data['authors']:
+            result += " / " + ", ".join(data['authors'])
+        result += ". "
+        
+        # Добавление сведений об издании
+        if data['edition']:
+            result += "— " + data['edition'] + "-е изд. "
+        
+        # Добавление места издания и издательства
+        if data['city'] or data['publisher']:
+            result += "— "
+            if data['city']:
+                result += data['city']
                 if data['publisher']:
-                    result += data['publisher']
-                if data['year']:
-                    result += ", "
-            
-            # Добавление года
-            if data['year']:
-                result += data['year']
+                    result += " : "
+            if data['publisher']:
+                result += data['publisher']
+            result += ", "
+        
+        # Добавление года
+        if data['year']:
+            result += data['year']
+        result += ". "
+        
+        # Добавление количества страниц
+        if data['pages']:
+            result += "— " + data['pages'] + " с."
+        
+        # Добавление DOI
+        if data['doi']:
+            result += " DOI: " + data['doi'] + "."
+        
+        return result.strip()
+    
+    def _format_article(self, data):
+        """Форматирование статьи по ГОСТ"""
+        result = ""
+        
+        # Добавление авторов
+        if data['authors']:
+            result += ", ".join(data['authors'])
             result += ". "
-            
-            # Добавление количества страниц
-            if data['pages']:
-                result += "— " + data['pages'] + " с. "
-            
-        elif data['type'] == "Статья":
-            # Добавление сведений об ответственности
-            if data['authors']:
-                result += " / " + data['authors']
-            result += ". "
-            
-            # Добавление названия журнала
-            if data['journal']:
-                result += "// " + data['journal'] + ". "
-            
-            # Добавление года
-            if data['year']:
-                result += "— " + data['year'] + ". "
-            
-            # Добавление тома
-            if data['volume']:
-                result += "— Т. " + data['volume']
-                if data['issue']:
-                    result += ", "
-                else:
-                    result += ". "
-            
-            # Добавление номера
+        
+        # Добавление названия
+        result += data['title']
+        
+        # Добавление подзаголовка
+        if data['subtitle']:
+            result += " : " + data['subtitle']
+        
+        # Добавление сведений об ответственности
+        if data['authors']:
+            result += " / " + ", ".join(data['authors'])
+        result += ". "
+        
+        # Добавление названия журнала
+        if data['journal']:
+            result += "// " + data['journal'] + ". "
+        
+        # Добавление года
+        if data['year']:
+            result += "— " + data['year'] + ". "
+        
+        # Добавление тома
+        if data['volume']:
+            result += "— Т. " + data['volume']
             if data['issue']:
-                result += "— № " + data['issue'] + ". "
-            
-            # Добавление страниц
-            if data['pages']:
-                result += "— С. " + data['pages'] + ". "
-            
-        elif data['type'] == "Веб-ресурс":
-            result += " [Электронный ресурс]. "
-            
-            # Добавление года
-            if data['year']:
-                result += "— " + data['year'] + ". "
-            
-            # Добавление URL
-            if data['url']:
-                result += "— URL: " + data['url']
-                # Добавление даты обращения (текущая дата)
-                current_date = datetime.now().strftime("%d.%m.%Y")
-                result += f" (дата обращения: {current_date}). "
+                result += ", "
+            else:
+                result += ". "
+        
+        # Добавление номера
+        if data['issue']:
+            result += "— № " + data['issue'] + ". "
+        
+        # Добавление страниц
+        if data['pages']:
+            result += "— С. " + data['pages'] + ". "
         
         # Добавление DOI
         if data['doi']:
             result += "DOI: " + data['doi'] + ". "
+        
+        return result.strip()
+    
+    def _format_web_resource(self, data):
+        """Форматирование веб-ресурса по ГОСТ"""
+        result = ""
+        
+        # Добавление авторов
+        if data['authors']:
+            result += ", ".join(data['authors'])
+            result += ". "
+        
+        # Добавление названия
+        result += data['title']
+        
+        # Добавление подзаголовка
+        if data['subtitle']:
+            result += " : " + data['subtitle']
+        
+        result += " [Электронный ресурс]. "
+        
+        # Добавление сведений об ответственности
+        if data['authors']:
+            result += "/ " + ", ".join(data['authors']) + ". "
+        
+        # Добавление места издания и издательства
+        if data['city'] or data['publisher']:
+            if data['city']:
+                result += data['city']
+                if data['publisher']:
+                    result += " : "
+            if data['publisher']:
+                result += data['publisher']
+            result += ", "
+        
+        # Добавление года
+        if data['year']:
+            result += data['year'] + ". "
+        
+        # Добавление URL
+        if data['url']:
+            result += "— URL: " + data['url']
+            # Добавление даты обращения (текущая дата)
+            current_date = datetime.now().strftime("%d.%m.%Y")
+            result += f" (дата обращения: {current_date}). "
+        
+        # Добавление DOI
+        if data['doi']:
+            result += "DOI: " + data['doi'] + ". "
+        
+        return result.strip()
+    
+    def _format_generic(self, data):
+        """Общее форматирование для других типов источников"""
+        result = ""
+        
+        # Добавление авторов
+        if data['authors']:
+            result += ", ".join(data['authors'])
+            result += ". "
+        
+        # Добавление названия
+        result += data['title']
+        
+        # Добавление подзаголовка
+        if data['subtitle']:
+            result += " : " + data['subtitle']
+        result += ". "
+        
+        # Добавление города и издательства
+        if data['city'] or data['publisher']:
+            if data['city']:
+                result += data['city']
+                if data['publisher']:
+                    result += " : "
+            if data['publisher']:
+                result += data['publisher']
+            
+            if data['year']:
+                result += ", "
+        
+        # Добавление года
+        if data['year']:
+            result += data['year']
+        result += ". "
+        
+        # Добавление количества страниц
+        if data['pages']:
+            result += data['pages'] + " с. "
+        
+        # Добавление DOI
+        if data['doi']:
+            result += "DOI: " + data['doi'] + ". "
+        
+        # Добавление URL
+        if data['url']:
+            result += "URL: " + data['url'] + ". "
         
         return result.strip()
     
@@ -510,9 +1061,7 @@ class InputTab(QWidget):
         Args:
             items (list): Список библиографических ссылок
         """
-        self.bibliography_list.clear()
-        for item in items:
-            self.bibliography_list.addItem(QListWidgetItem(str(item)))
+        self.bibliography_model.setItems(items)
     
     def fill_form_with_data(self, data):
         """
@@ -549,4 +1098,26 @@ class InputTab(QWidget):
         
         # Установка признаков ВАК/РИНЦ
         self.is_vak_check.setChecked(data.get('is_vak', False))
-        self.is_rinc_check.setChecked(data.get('is_rinc', False)) 
+        self.is_rinc_check.setChecked(data.get('is_rinc', False))
+    
+    def on_search(self):
+        """Обработчик поиска по таблице"""
+        search_text = self.search_edit.text().strip()
+        self.bibliography_model.set_filter(search_text)
+    
+    def on_clear_search(self):
+        """Обработчик очистки поискового запроса"""
+        self.search_edit.clear()
+        self.bibliography_model.set_filter("")
+    
+    def on_header_clicked(self, logical_index):
+        """
+        Обработчик клика по заголовку таблицы для сортировки
+        
+        Args:
+            logical_index (int): Индекс колонки
+        """
+        # Получаем порядок сортировки
+        order = self.bibliography_list.horizontalHeader().sortIndicatorOrder()
+        # Выполняем сортировку
+        self.bibliography_model.sort(logical_index, order) 

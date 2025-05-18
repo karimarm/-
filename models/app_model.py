@@ -15,12 +15,32 @@ class AppModel:
         self._history = []
         # Критерии проверки
         self._criteria = {
+            # Английские источники
             'min_english_percent': 0,
+            'min_english_count': 0,
+            'english_criteria_type': 'percent',
+            
+            # Свежие источники
             'min_recent_year': 2020,
             'min_recent_percent': 0,
+            'min_recent_count': 0,
+            'recent_criteria_type': 'percent',
+            
+            # Источники ВАК
             'min_vak_percent': 0,
+            'min_vak_count': 0,
+            'vak_criteria_type': 'percent',
+            
+            # Источники РИНЦ
             'min_rinc_percent': 0,
-            'max_single_author_percent': 100
+            'min_rinc_count': 0,
+            'rinc_criteria_type': 'percent',
+            
+            # Источники одного автора
+            'max_single_author_percent': 100,
+            'max_single_author_count': 1000,
+            'author_criteria_type': 'percent',
+            'specified_author': ''  # Новое поле для хранения ФИО указанного автора
         }
     
     @property

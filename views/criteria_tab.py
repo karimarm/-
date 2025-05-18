@@ -5,7 +5,8 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QPushButton, QComboBox, QGridLayout, QGroupBox, 
     QFormLayout, QSpinBox, QProgressBar, QTextEdit, 
-    QTableWidget, QTableWidgetItem, QHeaderView
+    QTableWidget, QTableWidgetItem, QHeaderView, QRadioButton,
+    QButtonGroup
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QColor
@@ -37,55 +38,152 @@ class CriteriaTab(QWidget):
         criteria_group = QGroupBox("Настройка критериев проверки")
         criteria_layout = QGridLayout()
         
-        # Критерий 1: Минимальный процент источников на английском языке
-        criteria_layout.addWidget(QLabel("Минимальный процент на английском языке:"), 0, 0)
+        # Критерий 1: Источники на английском языке
+        row = 0
+        criteria_layout.addWidget(QLabel("Источники на английском языке:"), row, 0)
+        
+        english_radio_group = QButtonGroup(self)
+        self.english_percent_radio = QRadioButton("Процент:")
+        self.english_count_radio = QRadioButton("Количество:")
+        english_radio_group.addButton(self.english_percent_radio)
+        english_radio_group.addButton(self.english_count_radio)
+        self.english_percent_radio.setChecked(True)
+        
+        # Размещение элементов в сетке
+        criteria_layout.addWidget(self.english_percent_radio, row, 1)
         self.english_percent_spin = QSpinBox()
         self.english_percent_spin.setRange(0, 100)
         self.english_percent_spin.setSuffix("%")
         self.english_percent_spin.setFixedWidth(100)
-        criteria_layout.addWidget(self.english_percent_spin, 0, 1)
+        criteria_layout.addWidget(self.english_percent_spin, row, 2)
         
-        # Критерий 2: Минимальный процент источников свежее заданного года
-        criteria_layout.addWidget(QLabel("Минимальный процент свежих источников:"), 1, 0)
+        row += 1
+        criteria_layout.addWidget(self.english_count_radio, row, 1)
+        self.english_count_spin = QSpinBox()
+        self.english_count_spin.setRange(0, 1000)
+        self.english_count_spin.setFixedWidth(100)
+        criteria_layout.addWidget(self.english_count_spin, row, 2)
+        
+        # Критерий 2: Свежие источники
+        row += 1
+        criteria_layout.addWidget(QLabel("Источники свежее заданного года:"), row, 0)
+        
+        recent_radio_group = QButtonGroup(self)
+        self.recent_percent_radio = QRadioButton("Процент:")
+        self.recent_count_radio = QRadioButton("Количество:")
+        recent_radio_group.addButton(self.recent_percent_radio)
+        recent_radio_group.addButton(self.recent_count_radio)
+        self.recent_percent_radio.setChecked(True)
+        
+        criteria_layout.addWidget(self.recent_percent_radio, row, 1)
         self.recent_percent_spin = QSpinBox()
         self.recent_percent_spin.setRange(0, 100)
         self.recent_percent_spin.setSuffix("%")
         self.recent_percent_spin.setFixedWidth(100)
-        criteria_layout.addWidget(self.recent_percent_spin, 1, 1)
+        criteria_layout.addWidget(self.recent_percent_spin, row, 2)
         
-        criteria_layout.addWidget(QLabel("Год считать свежим начиная с:"), 2, 0)
+        row += 1
+        criteria_layout.addWidget(self.recent_count_radio, row, 1)
+        self.recent_count_spin = QSpinBox()
+        self.recent_count_spin.setRange(0, 1000)
+        self.recent_count_spin.setFixedWidth(100)
+        criteria_layout.addWidget(self.recent_count_spin, row, 2)
+        
+        row += 1
+        criteria_layout.addWidget(QLabel("Год считать свежим начиная с:"), row, 0, 1, 1)
         self.recent_year_spin = QSpinBox()
         self.recent_year_spin.setRange(1900, 2100)
         self.recent_year_spin.setValue(2020)
         self.recent_year_spin.setFixedWidth(100)
-        criteria_layout.addWidget(self.recent_year_spin, 2, 1)
+        criteria_layout.addWidget(self.recent_year_spin, row, 2)
         
-        # Критерий 3: Минимальный процент источников ВАК
-        criteria_layout.addWidget(QLabel("Минимальный процент источников ВАК:"), 3, 0)
+        # Критерий 3: Источники ВАК
+        row += 1
+        criteria_layout.addWidget(QLabel("Источники ВАК:"), row, 0)
+        
+        vak_radio_group = QButtonGroup(self)
+        self.vak_percent_radio = QRadioButton("Процент:")
+        self.vak_count_radio = QRadioButton("Количество:")
+        vak_radio_group.addButton(self.vak_percent_radio)
+        vak_radio_group.addButton(self.vak_count_radio)
+        self.vak_percent_radio.setChecked(True)
+        
+        criteria_layout.addWidget(self.vak_percent_radio, row, 1)
         self.vak_percent_spin = QSpinBox()
         self.vak_percent_spin.setRange(0, 100)
         self.vak_percent_spin.setSuffix("%")
         self.vak_percent_spin.setFixedWidth(100)
-        criteria_layout.addWidget(self.vak_percent_spin, 3, 1)
+        criteria_layout.addWidget(self.vak_percent_spin, row, 2)
         
-        # Критерий 4: Минимальный процент источников РИНЦ
-        criteria_layout.addWidget(QLabel("Минимальный процент источников РИНЦ:"), 4, 0)
+        row += 1
+        criteria_layout.addWidget(self.vak_count_radio, row, 1)
+        self.vak_count_spin = QSpinBox()
+        self.vak_count_spin.setRange(0, 1000)
+        self.vak_count_spin.setFixedWidth(100)
+        criteria_layout.addWidget(self.vak_count_spin, row, 2)
+        
+        # Критерий 4: Источники РИНЦ
+        row += 1
+        criteria_layout.addWidget(QLabel("Источники РИНЦ:"), row, 0)
+        
+        rinc_radio_group = QButtonGroup(self)
+        self.rinc_percent_radio = QRadioButton("Процент:")
+        self.rinc_count_radio = QRadioButton("Количество:")
+        rinc_radio_group.addButton(self.rinc_percent_radio)
+        rinc_radio_group.addButton(self.rinc_count_radio)
+        self.rinc_percent_radio.setChecked(True)
+        
+        criteria_layout.addWidget(self.rinc_percent_radio, row, 1)
         self.rinc_percent_spin = QSpinBox()
         self.rinc_percent_spin.setRange(0, 100)
         self.rinc_percent_spin.setSuffix("%")
         self.rinc_percent_spin.setFixedWidth(100)
-        criteria_layout.addWidget(self.rinc_percent_spin, 4, 1)
+        criteria_layout.addWidget(self.rinc_percent_spin, row, 2)
         
-        # Критерий 5: Максимальный процент источников одного автора
-        criteria_layout.addWidget(QLabel("Максимальный процент источников одного автора:"), 5, 0)
+        row += 1
+        criteria_layout.addWidget(self.rinc_count_radio, row, 1)
+        self.rinc_count_spin = QSpinBox()
+        self.rinc_count_spin.setRange(0, 1000)
+        self.rinc_count_spin.setFixedWidth(100)
+        criteria_layout.addWidget(self.rinc_count_spin, row, 2)
+        
+        # Критерий 5: Источники одного автора
+        row += 1
+        criteria_layout.addWidget(QLabel("Источники с указанным автором:"), row, 0)
+        
+        # Добавляем поле для ввода ФИО автора
+        row += 1
+        criteria_layout.addWidget(QLabel("Укажите автора:"), row, 0, 1, 1)
+        self.author_name_edit = QLineEdit()
+        self.author_name_edit.setPlaceholderText("Например: Иванов И.И.")
+        criteria_layout.addWidget(self.author_name_edit, row, 1, 1, 2)
+        
+        row += 1
+        author_radio_group = QButtonGroup(self)
+        self.author_percent_radio = QRadioButton("Максимальный процент источников с автором:")
+        self.author_count_radio = QRadioButton("Максимальное количество источников с автором:")
+        author_radio_group.addButton(self.author_percent_radio)
+        author_radio_group.addButton(self.author_count_radio)
+        self.author_percent_radio.setChecked(True)
+        
+        criteria_layout.addWidget(self.author_percent_radio, row, 1)
         self.author_percent_spin = QSpinBox()
         self.author_percent_spin.setRange(0, 100)
         self.author_percent_spin.setSuffix("%")
         self.author_percent_spin.setValue(100)
         self.author_percent_spin.setFixedWidth(100)
-        criteria_layout.addWidget(self.author_percent_spin, 5, 1)
+        criteria_layout.addWidget(self.author_percent_spin, row, 2)
+        
+        row += 1
+        criteria_layout.addWidget(self.author_count_radio, row, 1)
+        self.author_count_spin = QSpinBox()
+        self.author_count_spin.setRange(0, 1000)
+        self.author_count_spin.setValue(1000)
+        self.author_count_spin.setFixedWidth(100)
+        criteria_layout.addWidget(self.author_count_spin, row, 2)
         
         # Кнопки для работы с критериями
+        row += 1
         buttons_layout = QHBoxLayout()
         
         self.check_button = QPushButton("Проверить критерии")
@@ -94,7 +192,7 @@ class CriteriaTab(QWidget):
         self.save_button = QPushButton("Сохранить критерии")
         buttons_layout.addWidget(self.save_button)
         
-        criteria_layout.addLayout(buttons_layout, 6, 0, 1, 2)
+        criteria_layout.addLayout(buttons_layout, row, 0, 1, 3)
         
         criteria_group.setLayout(criteria_layout)
         main_layout.addWidget(criteria_group)
@@ -133,6 +231,42 @@ class CriteriaTab(QWidget):
         """Подключение обработчиков событий"""
         self.check_button.clicked.connect(self.on_check_criteria)
         self.save_button.clicked.connect(self.on_save_criteria)
+        
+        # Переключение радиокнопок
+        self.english_percent_radio.toggled.connect(lambda checked: self.english_percent_spin.setEnabled(checked))
+        self.english_count_radio.toggled.connect(lambda checked: self.english_count_spin.setEnabled(checked))
+        
+        self.recent_percent_radio.toggled.connect(lambda checked: self.recent_percent_spin.setEnabled(checked))
+        self.recent_count_radio.toggled.connect(lambda checked: self.recent_count_spin.setEnabled(checked))
+        
+        self.vak_percent_radio.toggled.connect(lambda checked: self.vak_percent_spin.setEnabled(checked))
+        self.vak_count_radio.toggled.connect(lambda checked: self.vak_count_spin.setEnabled(checked))
+        
+        self.rinc_percent_radio.toggled.connect(lambda checked: self.rinc_percent_spin.setEnabled(checked))
+        self.rinc_count_radio.toggled.connect(lambda checked: self.rinc_count_spin.setEnabled(checked))
+        
+        self.author_percent_radio.toggled.connect(lambda checked: self.author_percent_spin.setEnabled(checked))
+        self.author_count_radio.toggled.connect(lambda checked: self.author_count_spin.setEnabled(checked))
+        
+        # Начальное состояние - активированы только процентные поля
+        self._update_spinbox_states()
+    
+    def _update_spinbox_states(self):
+        """Обновление состояния полей ввода в зависимости от выбранных типов критериев"""
+        self.english_percent_spin.setEnabled(self.english_percent_radio.isChecked())
+        self.english_count_spin.setEnabled(self.english_count_radio.isChecked())
+        
+        self.recent_percent_spin.setEnabled(self.recent_percent_radio.isChecked())
+        self.recent_count_spin.setEnabled(self.recent_count_radio.isChecked())
+        
+        self.vak_percent_spin.setEnabled(self.vak_percent_radio.isChecked())
+        self.vak_count_spin.setEnabled(self.vak_count_radio.isChecked())
+        
+        self.rinc_percent_spin.setEnabled(self.rinc_percent_radio.isChecked())
+        self.rinc_count_spin.setEnabled(self.rinc_count_radio.isChecked())
+        
+        self.author_percent_spin.setEnabled(self.author_percent_radio.isChecked())
+        self.author_count_spin.setEnabled(self.author_count_radio.isChecked())
     
     def on_check_criteria(self):
         """Обработчик проверки критериев"""
@@ -151,14 +285,62 @@ class CriteriaTab(QWidget):
         Returns:
             dict: Словарь с критериями проверки
         """
-        return {
-            'min_english_percent': self.english_percent_spin.value(),
-            'min_recent_percent': self.recent_percent_spin.value(),
+        criteria = {
             'min_recent_year': self.recent_year_spin.value(),
-            'min_vak_percent': self.vak_percent_spin.value(),
-            'min_rinc_percent': self.rinc_percent_spin.value(),
-            'max_single_author_percent': self.author_percent_spin.value()
         }
+        
+        # Английские источники
+        if self.english_percent_radio.isChecked():
+            criteria['min_english_percent'] = self.english_percent_spin.value()
+            criteria['min_english_count'] = 0
+            criteria['english_criteria_type'] = 'percent'
+        else:
+            criteria['min_english_percent'] = 0
+            criteria['min_english_count'] = self.english_count_spin.value()
+            criteria['english_criteria_type'] = 'count'
+        
+        # Свежие источники
+        if self.recent_percent_radio.isChecked():
+            criteria['min_recent_percent'] = self.recent_percent_spin.value()
+            criteria['min_recent_count'] = 0
+            criteria['recent_criteria_type'] = 'percent'
+        else:
+            criteria['min_recent_percent'] = 0
+            criteria['min_recent_count'] = self.recent_count_spin.value()
+            criteria['recent_criteria_type'] = 'count'
+        
+        # Источники ВАК
+        if self.vak_percent_radio.isChecked():
+            criteria['min_vak_percent'] = self.vak_percent_spin.value()
+            criteria['min_vak_count'] = 0
+            criteria['vak_criteria_type'] = 'percent'
+        else:
+            criteria['min_vak_percent'] = 0
+            criteria['min_vak_count'] = self.vak_count_spin.value()
+            criteria['vak_criteria_type'] = 'count'
+        
+        # Источники РИНЦ
+        if self.rinc_percent_radio.isChecked():
+            criteria['min_rinc_percent'] = self.rinc_percent_spin.value()
+            criteria['min_rinc_count'] = 0
+            criteria['rinc_criteria_type'] = 'percent'
+        else:
+            criteria['min_rinc_percent'] = 0
+            criteria['min_rinc_count'] = self.rinc_count_spin.value()
+            criteria['rinc_criteria_type'] = 'count'
+        
+        # Источники указанного автора
+        criteria['specified_author'] = self.author_name_edit.text().strip()
+        if self.author_percent_radio.isChecked():
+            criteria['max_single_author_percent'] = self.author_percent_spin.value()
+            criteria['max_single_author_count'] = 1000
+            criteria['author_criteria_type'] = 'percent'
+        else:
+            criteria['max_single_author_percent'] = 100
+            criteria['max_single_author_count'] = self.author_count_spin.value()
+            criteria['author_criteria_type'] = 'count'
+        
+        return criteria
     
     def set_criteria(self, criteria):
         """
@@ -167,12 +349,52 @@ class CriteriaTab(QWidget):
         Args:
             criteria (dict): Словарь с критериями проверки
         """
-        self.english_percent_spin.setValue(criteria.get('min_english_percent', 0))
-        self.recent_percent_spin.setValue(criteria.get('min_recent_percent', 0))
+        # Установка года для свежих источников
         self.recent_year_spin.setValue(criteria.get('min_recent_year', 2020))
+        
+        # Английские источники
+        self.english_percent_spin.setValue(criteria.get('min_english_percent', 0))
+        self.english_count_spin.setValue(criteria.get('min_english_count', 0))
+        if criteria.get('english_criteria_type') == 'count':
+            self.english_count_radio.setChecked(True)
+        else:
+            self.english_percent_radio.setChecked(True)
+        
+        # Свежие источники
+        self.recent_percent_spin.setValue(criteria.get('min_recent_percent', 0))
+        self.recent_count_spin.setValue(criteria.get('min_recent_count', 0))
+        if criteria.get('recent_criteria_type') == 'count':
+            self.recent_count_radio.setChecked(True)
+        else:
+            self.recent_percent_radio.setChecked(True)
+        
+        # Источники ВАК
         self.vak_percent_spin.setValue(criteria.get('min_vak_percent', 0))
+        self.vak_count_spin.setValue(criteria.get('min_vak_count', 0))
+        if criteria.get('vak_criteria_type') == 'count':
+            self.vak_count_radio.setChecked(True)
+        else:
+            self.vak_percent_radio.setChecked(True)
+        
+        # Источники РИНЦ
         self.rinc_percent_spin.setValue(criteria.get('min_rinc_percent', 0))
+        self.rinc_count_spin.setValue(criteria.get('min_rinc_count', 0))
+        if criteria.get('rinc_criteria_type') == 'count':
+            self.rinc_count_radio.setChecked(True)
+        else:
+            self.rinc_percent_radio.setChecked(True)
+        
+        # Источники указанного автора
+        self.author_name_edit.setText(criteria.get('specified_author', ''))
         self.author_percent_spin.setValue(criteria.get('max_single_author_percent', 100))
+        self.author_count_spin.setValue(criteria.get('max_single_author_count', 1000))
+        if criteria.get('author_criteria_type') == 'count':
+            self.author_count_radio.setChecked(True)
+        else:
+            self.author_percent_radio.setChecked(True)
+        
+        # Обновление состояния полей ввода
+        self._update_spinbox_states()
     
     def display_results(self, results):
         """
