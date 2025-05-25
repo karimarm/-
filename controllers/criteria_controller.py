@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import Counter
+from PyQt5.QtWidgets import QMessageBox
 
 class CriteriaController:
     """
@@ -58,6 +59,33 @@ class CriteriaController:
         # Отображение результатов и статистики
         self.view.display_results(results)
         self.view.display_statistics(self.format_statistics(stats))
+        
+        # Подсчет выполненных критериев для определения типа сообщения
+        total_count = len(results)
+        passed_count = sum(1 for result in results.values() if result['match'])
+        
+        # Показываем сообщение о результатах проверки критериев
+        msg_box = QMessageBox(self.view)
+        msg_box.setWindowTitle("Проверка критериев завершена")
+        
+        if passed_count == total_count:
+            # Все критерии выполнены
+            msg_box.setText("Библиографический список полностью соответствует заданным критериям!")
+            msg_box.setInformativeText(f"Выполнены все {total_count} критериев.")
+            msg_box.setIcon(QMessageBox.Information)
+        elif passed_count == 0:
+            # Ни один критерий не выполнен
+            msg_box.setText("Библиографический список не соответствует ни одному из заданных критериев.")
+            msg_box.setInformativeText("Рекомендуется добавить источники, соответствующие заданным критериям, или скорректировать сами критерии.")
+            msg_box.setIcon(QMessageBox.Critical)
+        else:
+            # Часть критериев выполнена
+            msg_box.setText(f"Библиографический список частично соответствует заданным критериям.")
+            msg_box.setInformativeText(f"Выполнено {passed_count} из {total_count} критериев. Обратите внимание на критерии, отмеченные красным в таблице результатов.")
+            msg_box.setIcon(QMessageBox.Warning)
+        
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.exec_()
     
     def save_criteria(self, criteria):
         """
